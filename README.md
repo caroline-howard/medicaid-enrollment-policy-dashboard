@@ -1,5 +1,9 @@
 # Medicaid Enrollment Policy Dashboard
 
+## About
+
+A healthcare policy analytics portfolio project focused on Medicaid/CHIP enrollment, eligibility operations, data quality, and policy-facing dashboard reporting using public CMS data.
+
 ## Project Summary
 
 This repository will support a healthcare policy analytics portfolio project focused on public Medicaid and CHIP enrollment and eligibility operations data. The final project will combine source validation, data cleaning, policy context, and dashboard-ready outputs for analysis of Medicaid enrollment trends and operational indicators.

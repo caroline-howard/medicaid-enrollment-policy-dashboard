@@ -15,12 +15,12 @@ __pycache__/
 # Large raw data files
 data/raw/*
 !data/raw/.gitkeep
-*.csv
-*.tsv
-*.xlsx
-*.xls
-*.parquet
-*.zip
+data/raw/*.csv
+data/raw/*.tsv
+data/raw/*.xlsx
+data/raw/*.xls
+data/raw/*.parquet
+data/raw/*.zip
 
 # OS files
 .DS_Store

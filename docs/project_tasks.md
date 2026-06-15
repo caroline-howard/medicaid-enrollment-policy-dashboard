@@ -12,28 +12,28 @@ This checklist tracks planned project work in a GitHub issue-style format. It is
 
 ## 2. Data Ingestion
 
-- [ ] Identify official CMS/Medicaid data source: Select the authoritative public source for Medicaid/CHIP enrollment and eligibility operations data.
-- [ ] Download or access public Medicaid/CHIP enrollment and eligibility operations data: Use the official source without modifying raw values.
-- [ ] Document source URL, access date, update date, and dataset description: Record enough metadata for reproducibility and policy context.
-- [ ] Save raw data or document download instructions if raw files are too large: Preserve raw data when practical, or document a repeatable access method.
+- [x] Identify official CMS/Medicaid data source: Select the authoritative public source for Medicaid/CHIP enrollment and eligibility operations data.
+- [x] Download or access public Medicaid/CHIP enrollment and eligibility operations data: Use the official source without modifying raw values.
+- [x] Document source URL, access date, update date, and dataset description: Record enough metadata for reproducibility and policy context.
+- [x] Save raw data or document download instructions if raw files are too large: Preserve raw data when practical, or document a repeatable access method.
 
 ## 3. Data Cleaning
 
-- [ ] Standardize column names: Convert source fields into consistent, readable snake_case names.
-- [ ] Parse reporting dates: Convert reporting periods into validated date fields suitable for state-month analysis.
-- [ ] Standardize state names/abbreviations: Ensure state identifiers are consistent across source files and outputs.
-- [ ] Preserve enrollment and eligibility operations fields: Keep policy-relevant source fields needed for dashboard reporting and data quality review.
-- [ ] Create cleaned state-month dataset: Produce a validated state-month table for downstream analysis.
-- [ ] Create dashboard sample dataset: Create a small, documented sample for development only after real data is validated.
+- [x] Standardize column names: Convert source fields into consistent, readable snake_case names.
+- [x] Parse reporting dates: Convert reporting periods into validated date fields suitable for state-month analysis.
+- [x] Standardize state names/abbreviations: Ensure state identifiers are consistent across source files and outputs.
+- [x] Preserve enrollment and eligibility operations fields: Keep policy-relevant source fields needed for dashboard reporting and data quality review.
+- [x] Create cleaned state-month dataset: Produce a validated state-month table for downstream analysis.
+- [x] Create dashboard sample dataset: Create a small, documented sample for development only after real data is validated.
 
 ## 4. Data Quality Checks
 
-- [ ] Check missingness by field: Summarize missing values across source and cleaned fields.
-- [ ] Check missingness by state/month: Identify gaps that affect trend reporting or state comparisons.
-- [ ] Check duplicate state-month records: Confirm whether records are unique at the intended reporting grain.
-- [ ] Check suspicious zero or negative values: Flag values that may require source review or interpretation notes.
-- [ ] Identify incomplete months: Determine whether recent reporting periods are partial, preliminary, or otherwise incomplete.
-- [ ] Document state reporting variation and limitations: Capture differences in state reporting practices and known caveats.
+- [x] Check missingness by field: Summarize missing values across source and cleaned fields.
+- [x] Check missingness by state/month: Identify gaps that affect trend reporting or state comparisons.
+- [x] Check duplicate state-month records: Confirm whether records are unique at the intended reporting grain.
+- [x] Check suspicious zero or negative values: Flag values that may require source review or interpretation notes.
+- [x] Identify incomplete months: Determine whether recent reporting periods are partial, preliminary, or otherwise incomplete.
+- [x] Document state reporting variation and limitations: Capture differences in state reporting practices and known caveats.
 
 ## 5. Exploratory Data Analysis
 

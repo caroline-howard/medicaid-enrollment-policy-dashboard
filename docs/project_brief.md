@@ -12,6 +12,15 @@ Public Medicaid and CHIP enrollment and eligibility operations data can support 
 
 This project will emphasize source validation, data dictionary documentation, missingness checks, and clear limitations. The workflow will separate raw files, processed files, dashboard-ready tables, and written policy notes so that data quality findings and interpretation assumptions remain visible.
 
+## Documentation Standard
+
+Every notebook should answer:
+
+1. What did I do?
+2. Why did I do it?
+3. What does it mean for healthcare reporting, Medicaid policy monitoring, or operational decision-making?
+4. What are the data limitations?
+
 ## Planned Final Dashboard
 
 The final dashboard will show Medicaid/CHIP enrollment trends, state comparisons, eligibility operations indicators, reporting completeness, and policy notes that help users interpret what the data can and cannot show.

@@ -4,6 +4,8 @@
 
 This repository will support a healthcare policy analytics portfolio project focused on public Medicaid and CHIP enrollment and eligibility operations data. The final project will combine source validation, data cleaning, policy context, and dashboard-ready outputs for analysis of Medicaid enrollment trends and operational indicators.
 
+This project emphasizes not only code, but also reproducible documentation, data quality checks, and policy-facing interpretation for healthcare analytics and Medicaid program reporting.
+
 Current status: Project scaffold created; data ingestion pending.
 
 ## Why Medicaid Enrollment And Eligibility Operations Matter
@@ -78,6 +80,7 @@ medicaid-enrollment-policy-dashboard/
 └── docs/
     ├── source_notes.md
     ├── project_brief.md
+    ├── project_tasks.md
     └── limitations.md
 ```
 

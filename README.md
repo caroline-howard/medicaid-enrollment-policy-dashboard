@@ -10,7 +10,7 @@ This repository will support a healthcare policy analytics portfolio project foc
 
 This project emphasizes not only code, but also reproducible documentation, data quality checks, and policy-facing interpretation for healthcare analytics and Medicaid program reporting.
 
-Current status: Data ingestion and source validation complete; exploratory analysis pending.
+Current status: Exploratory analysis and dashboard-ready table creation complete; Plotly Dash app development pending.
 
 ## Why Medicaid Enrollment And Eligibility Operations Matter
 
@@ -66,6 +66,17 @@ The processed data preserves:
 
 Renewals/redeterminations and pending applications are not preserved because they are not available as dedicated fields in the selected source extract.
 
+## EDA Status
+
+Exploratory analysis is complete for the first dashboard version. The EDA phase created national enrollment trends, state comparison summaries, eligibility operations summaries, data quality summaries, dashboard notes, and static figures for documentation.
+
+Key descriptive findings:
+
+- National Medicaid/CHIP enrollment rose from early 2020 to an April 2023 peak, then declined through the latest available reporting month.
+- February 2026 is the latest available month and is preliminary for all 50 states plus DC.
+- Applications and eligibility determinations support descriptive operations analysis, but they should not be treated as complete performance metrics.
+- Adult enrollment, call center, and processing-time fields have high missingness and should be used cautiously.
+
 ## Planned Dashboard Sections
 
 The dashboard is planned to include:
@@ -73,7 +84,7 @@ The dashboard is planned to include:
 - National enrollment overview
 - State-level enrollment comparisons
 - Medicaid and CHIP trend views
-- Eligibility operations and renewal indicators
+- Eligibility operations indicators
 - Reporting quality and missingness notes
 - Policy interpretation notes and limitations
 
@@ -97,6 +108,29 @@ Version 1 will focus on policy analytics, data quality, and dashboard reporting.
 - `data/processed/medicaid_sample_for_dashboard.csv`
 - `data/processed/data_quality_summary.csv`
 
+## Dashboard-Ready Tables Created
+
+- `outputs/dashboard_tables/kpi_summary.csv`
+- `outputs/dashboard_tables/national_enrollment_trend.csv`
+- `outputs/dashboard_tables/national_applications_determinations_trend.csv`
+- `outputs/dashboard_tables/state_latest_snapshot.csv`
+- `outputs/dashboard_tables/state_enrollment_change.csv`
+- `outputs/dashboard_tables/state_eligibility_operations_summary.csv`
+- `outputs/dashboard_tables/data_quality_by_field.csv`
+- `outputs/dashboard_tables/data_quality_by_state.csv`
+- `outputs/dashboard_tables/data_quality_by_month.csv`
+- `outputs/dashboard_tables/dashboard_notes.csv`
+
+## What This Project Demonstrates
+
+- Reproducible public healthcare data ingestion from official CMS sources
+- Source validation and data dictionary documentation
+- Medicaid/CHIP enrollment trend analysis
+- Eligibility operations reporting using applications and determinations
+- State-by-state comparison and dashboard table preparation
+- Data quality, missingness, and preliminary/final reporting checks
+- Policy-facing interpretation without unsupported causal claims
+
 ## Repository Structure
 
 ```text
@@ -109,10 +143,13 @@ medicaid-enrollment-policy-dashboard/
 │   ├── processed/
 │   └── data_dictionary.md
 ├── notebooks/
-│   └── 01_data_ingestion_and_source_validation.ipynb
+│   ├── 01_data_ingestion_and_source_validation.ipynb
+│   └── 02_eda_and_dashboard_tables.ipynb
 ├── src/
 │   ├── load_data.py
-│   └── clean_medicaid_data.py
+│   ├── clean_medicaid_data.py
+│   ├── eda_medicaid.py
+│   └── build_dashboard_tables.py
 ├── outputs/
 │   ├── dashboard_tables/
 │   └── figures/
@@ -120,12 +157,14 @@ medicaid-enrollment-policy-dashboard/
     ├── source_notes.md
     ├── project_brief.md
     ├── project_tasks.md
+    ├── data_viability_and_next_steps.md
+    ├── eda_findings.md
     └── limitations.md
 ```
 
 ## Next Steps
 
-1. Complete exploratory analysis of enrollment and eligibility operations trends.
-2. Create dashboard-ready summary tables in `outputs/dashboard_tables/`.
-3. Draft policy-facing interpretation notes and data quality caveats.
-4. Build the Plotly Dash dashboard after EDA and dashboard tables are complete.
+1. Build the Plotly Dash app using the dashboard-ready tables in `outputs/dashboard_tables/`.
+2. Add national overview, state comparison, eligibility operations, data quality, and policy interpretation sections.
+3. Include visible caution language for preliminary latest-month data and high-missingness fields.
+4. Add dashboard screenshots to the README after the app is built.

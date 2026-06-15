@@ -1,0 +1,9 @@
+metric,value,notes
+latest_reporting_month,2026-02,Latest available reporting month in cleaned data.
+latest_month_is_preliminary,True,Treat latest month cautiously when preliminary records are present.
+states_dc_included,51,All 50 states plus DC.
+latest_total_medicaid_chip_enrollment,74877742,National sum across state/DC records.
+monthly_enrollment_change,-918199,Change from prior reporting month.
+change_since_january_2019,2711814,Descriptive change since first month in cleaned dataset.
+latest_applications_submitted,2460804,National total applications for financial assistance submitted at state level.
+latest_total_determinations,1601892,National total Medicaid/CHIP eligibility determinations at application.

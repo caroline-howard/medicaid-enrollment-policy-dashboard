@@ -37,19 +37,19 @@ This checklist tracks planned project work in a GitHub issue-style format. It is
 
 ## 5. Exploratory Data Analysis
 
-- [ ] Summarize national enrollment trends: Create descriptive summaries of national Medicaid/CHIP enrollment patterns.
-- [ ] Compare state-level enrollment changes: Identify state-level increases, decreases, and variation over time.
-- [ ] Analyze applications and eligibility determinations if available: Describe eligibility operations trends where source fields support it.
-- [ ] Identify states/months with unusual changes: Flag changes for further review without making unsupported causal claims.
-- [ ] Create dashboard-ready summary tables: Prepare EDA outputs that can feed the final dashboard structure.
+- [x] Summarize national enrollment trends: Create descriptive summaries of national Medicaid/CHIP enrollment patterns.
+- [x] Compare state-level enrollment changes: Identify state-level increases, decreases, and variation over time.
+- [x] Analyze applications and eligibility determinations if available: Describe eligibility operations trends where source fields support it.
+- [x] Identify states/months with unusual changes: Flag changes for further review without making unsupported causal claims.
+- [x] Create dashboard-ready summary tables: Prepare EDA outputs that can feed the final dashboard structure.
 
 ## 6. Dashboard Tables
 
-- [ ] Create KPI summary table: Prepare high-level indicators for dashboard cards.
-- [ ] Create national trend table: Prepare national monthly trend data.
-- [ ] Create state comparison table: Prepare state-level comparison and ranking outputs.
-- [ ] Create eligibility operations table: Prepare applications, determinations, and related operations fields where available.
-- [ ] Create data quality summary table: Prepare missingness, completeness, duplicate, and caution-flag summaries.
+- [x] Create KPI summary table: Prepare high-level indicators for dashboard cards.
+- [x] Create national trend table: Prepare national monthly trend data.
+- [x] Create state comparison table: Prepare state-level comparison and ranking outputs.
+- [x] Create eligibility operations table: Prepare applications, determinations, and related operations fields where available.
+- [x] Create data quality summary table: Prepare missingness, completeness, duplicate, and caution-flag summaries.
 
 ## 7. Plotly Dash App
 

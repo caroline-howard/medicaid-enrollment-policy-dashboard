@@ -1,0 +1,8 @@
+note_type,note_text
+data_source,"Data source is the official CMS/Data.Medicaid.gov State Medicaid and CHIP Applications, Eligibility Determinations, and Enrollment Data."
+latest_reporting_month_caution,The latest reporting month is 2026-02; 51 state/DC records are preliminary and should be interpreted cautiously.
+preliminary_final_reporting,CMS source data can include preliminary and updated/final records. The cleaned dataset keeps one record per state-month and prefers final/updated records.
+enrollment_interpretation,Enrollment fields are point-in-time month-end aggregate counts and support descriptive trend monitoring.
+application_determination_interpretation,"Applications and determinations are descriptive operational indicators, not complete performance scores."
+missingness_caveats,"Adult enrollment, call center, and processing-time fields have substantial missingness and should not be headline KPIs without caveats."
+dashboard_limits,"The dashboard cannot show individual outcomes, causal policy effects, claims/utilization patterns, pending applications, or clean standalone renewal volumes."

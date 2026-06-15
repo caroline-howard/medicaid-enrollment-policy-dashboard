@@ -116,10 +116,13 @@ Version 1 will focus on policy analytics, data quality, and dashboard reporting.
 - `outputs/dashboard_tables/state_latest_snapshot.csv`
 - `outputs/dashboard_tables/state_enrollment_change.csv`
 - `outputs/dashboard_tables/state_eligibility_operations_summary.csv`
+- `outputs/dashboard_tables/state_map_metrics.csv`
 - `outputs/dashboard_tables/data_quality_by_field.csv`
 - `outputs/dashboard_tables/data_quality_by_state.csv`
 - `outputs/dashboard_tables/data_quality_by_month.csv`
 - `outputs/dashboard_tables/dashboard_notes.csv`
+
+The `state_map_metrics.csv` table provides one row per state/DC for the future State Map Explorer choropleth and selected state profile cards.
 
 ## What This Project Demonstrates
 

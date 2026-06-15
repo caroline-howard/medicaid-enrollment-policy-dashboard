@@ -10,7 +10,7 @@ This repository will support a healthcare policy analytics portfolio project foc
 
 This project emphasizes not only code, but also reproducible documentation, data quality checks, and policy-facing interpretation for healthcare analytics and Medicaid program reporting.
 
-Current status: Exploratory analysis and dashboard-ready table creation complete; Plotly Dash app development pending.
+Current status: Initial Plotly Dash State Map Explorer created; broader dashboard sections pending.
 
 ## Why Medicaid Enrollment And Eligibility Operations Matter
 
@@ -83,6 +83,7 @@ The dashboard is planned to include:
 
 - National enrollment overview
 - State-level enrollment comparisons
+- GIS-style State Map Explorer choropleth
 - Medicaid and CHIP trend views
 - Eligibility operations indicators
 - Reporting quality and missingness notes
@@ -124,6 +125,16 @@ Version 1 will focus on policy analytics, data quality, and dashboard reporting.
 
 The `state_map_metrics.csv` table provides one row per state/DC for the future State Map Explorer choropleth and selected state profile cards.
 
+The initial Dash app includes a state-level choropleth map and GIS-style spatial reporting section powered by `state_map_metrics.csv`. The map uses state-level aggregate data only; it does not create county-level, beneficiary-level, claims, utilization, or cost views.
+
+## Run The Dash App
+
+```bash
+python app.py
+```
+
+Then open `http://127.0.0.1:8050`.
+
 ## What This Project Demonstrates
 
 - Reproducible public healthcare data ingestion from official CMS sources
@@ -139,8 +150,11 @@ The `state_map_metrics.csv` table provides one row per state/DC for the future S
 ```text
 medicaid-enrollment-policy-dashboard/
 ├── README.md
+├── app.py
 ├── requirements.txt
 ├── .gitignore
+├── assets/
+│   └── styles.css
 ├── data/
 │   ├── raw/
 │   ├── processed/
@@ -167,7 +181,7 @@ medicaid-enrollment-policy-dashboard/
 
 ## Next Steps
 
-1. Build the Plotly Dash app using the dashboard-ready tables in `outputs/dashboard_tables/`.
+1. Expand the Dash app beyond the State Map Explorer using the dashboard-ready tables in `outputs/dashboard_tables/`.
 2. Add national overview, state comparison, eligibility operations, data quality, and policy interpretation sections.
-3. Include visible caution language for preliminary latest-month data and high-missingness fields.
-4. Add dashboard screenshots to the README after the app is built.
+3. Include visible caution language for preliminary latest-month data and high-missingness fields throughout the app.
+4. Add dashboard screenshots to the README after the full Version 1 app is built.

@@ -92,6 +92,7 @@ The dashboard is planned to include:
 - Enrollment Maps
 - Medicaid vs CHIP
 - Eligibility Operations
+- Monitoring Flags
 - Data Quality
 - About / Limitations
 
@@ -154,6 +155,8 @@ The `state_map_metrics.csv` table provides one row per state/DC for the future S
 The Dash app includes a state-level choropleth map and GIS-style spatial reporting section powered by `state_map_metrics.csv` and `state_population_adjusted_metrics.csv`. The map uses state-level aggregate data only; it does not create county-level, beneficiary-level, claims, utilization, or cost views.
 
 Population-adjusted Medicaid/CHIP metrics include enrollment per 1,000 residents, Medicaid enrollment per 1,000 residents, CHIP enrollment per 1,000 residents, applications submitted per 100,000 residents, and eligibility determinations per 100,000 residents.
+
+The Monitoring Flags tab uses `monitoring_review_flags.csv` to help users review unusual state/month changes and reporting caveats. Review flags are context prompts, not problem labels, performance failures, or causal findings.
 
 ## Run The Dash App
 

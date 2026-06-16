@@ -82,9 +82,8 @@ DASHBOARD_DIR = BASE_DIR / "outputs" / "dashboard_tables"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
 
 NOTE_TEXT = (
-    "Note: Latest-month data may be preliminary. This dashboard uses public "
-    "aggregate Medicaid/CHIP data and supports descriptive reporting, not "
-    "beneficiary-level or causal analysis."
+    "Note: Latest-month data may be preliminary. This dashboard supports "
+    "descriptive reporting, not beneficiary-level or causal analysis."
 )
 POLICY_NOTE = (
     "State differences may reflect policy, eligibility rules, administrative "
@@ -142,14 +141,27 @@ state_month_rows = read_rows(PROCESSED_DIR / "medicaid_state_month_summary.csv")
 quality_field_rows = read_rows(DASHBOARD_DIR / "data_quality_by_field.csv")
 quality_state_rows = read_rows(DASHBOARD_DIR / "data_quality_by_state.csv")
 quality_month_rows = read_rows(DASHBOARD_DIR / "data_quality_by_month.csv")
+peak_change_rows = read_rows(DASHBOARD_DIR / "enrollment_change_from_peak.csv")
+monitoring_flag_rows = read_rows(DASHBOARD_DIR / "monitoring_review_flags.csv")
+state_monitoring_rows = read_rows(DASHBOARD_DIR / "state_monitoring_summary.csv")
+national_monitoring_rows = read_rows(DASHBOARD_DIR / "national_monitoring_summary.csv")
 
 state_lookup = {row["state_abbreviation"]: row for row in state_rows}
+peak_lookup = {row["state_abbreviation"]: row for row in peak_change_rows}
+state_monitoring_lookup = {
+    row["state_abbreviation"]: row for row in state_monitoring_rows
+}
 state_month_lookup: dict[str, list[dict[str, str]]] = {}
 for row in state_month_rows:
     state_month_lookup.setdefault(row["state_abbreviation"], []).append(row)
 
 latest_month = month_label(state_rows[0]["latest_reporting_month"])
 population_year = state_rows[0]["population_denominator_year"]
+latest_preliminary_status = (
+    "Preliminary"
+    if any(row["latest_month_preliminary_status"] != "Final/updated" for row in state_rows)
+    else "Final/updated"
+)
 
 MAP_METRICS = {
     "latest_total_medicaid_chip_enrollment": {
@@ -315,6 +327,25 @@ def current_national_totals() -> dict[str, float]:
     }
 
 
+def selected_state_options_with_all() -> list[dict[str, str]]:
+    return [{"label": "All states", "value": "ALL"}] + sorted_states(state_rows)
+
+
+def flag_type_options() -> list[dict[str, str]]:
+    labels = {
+        "large_month_over_month_enrollment_change": "Large month-over-month enrollment change",
+        "large_applications_spike": "Large applications spike",
+        "large_determinations_spike": "Large determinations spike",
+        "latest_month_preliminary_reporting_caution": "Latest-month preliminary reporting caution",
+        "high_missingness_caution": "High missingness caution",
+    }
+    values = sorted({row["flag_type"] for row in monitoring_flag_rows})
+    return [{"label": "All review flags", "value": "ALL"}] + [
+        {"label": labels.get(value, value.replace("_", " ").title()), "value": value}
+        for value in values
+    ]
+
+
 def build_overview_tab() -> html.Div:
     totals = current_national_totals()
     return html.Div(
@@ -325,6 +356,7 @@ def build_overview_tab() -> html.Div:
                 className="kpi-grid",
                 children=[
                     card("Latest reporting month", latest_month, "CMS state-month aggregate data"),
+                    card("Latest preliminary status", latest_preliminary_status, "Interpret latest month cautiously"),
                     card("Total Medicaid/CHIP enrollment", format_value(totals["total"]), "National latest month"),
                     card("Medicaid enrollment", format_value(totals["medicaid"]), "National latest month"),
                     card("CHIP enrollment", format_value(totals["chip"]), "National latest month"),
@@ -375,10 +407,10 @@ def build_overview_tab() -> html.Div:
                 children=[
                     html.H2("Plain-Language Summary"),
                     html.P(
-                        "This dashboard summarizes Medicaid/CHIP enrollment, CHIP enrollment, and eligibility "
-                        "operations using official public state-level aggregate data. Population-adjusted measures "
-                        "help compare relative enrollment scale across states, while raw counts remain useful for "
-                        "understanding total program size and operational volume."
+                        "This dashboard uses official CMS/Data.Medicaid.gov state-month aggregate data to monitor "
+                        "Medicaid/CHIP enrollment, applications, eligibility determinations, population-adjusted "
+                        "context, and data quality patterns. Findings are descriptive and intended for reporting "
+                        "and monitoring, not causal evaluation."
                     ),
                 ],
             ),
@@ -451,14 +483,19 @@ def build_map(metric_key: str, selected_state: str) -> go.Figure:
 
 def build_state_profile(selected_state: str) -> html.Div:
     row = state_lookup.get(selected_state, state_rows[0])
+    peak = peak_lookup.get(row["state_abbreviation"], {})
     fields = [
         ("Latest reporting month", latest_month),
         ("Total Medicaid/CHIP enrollment", format_value(row["latest_total_medicaid_chip_enrollment"])),
         ("Enrollment per 1,000 residents", format_value(row["medicaid_chip_enrollment_per_1000_residents"], "decimal")),
+        ("Medicaid enrollment", format_value(row["latest_medicaid_enrollment"])),
+        ("CHIP enrollment", format_value(row["latest_chip_enrollment"])),
         ("Change since January 2019", format_value(row["change_since_january_2019"], "signed_integer")),
+        ("Change from peak", format_value(peak.get("change_from_peak"), "signed_integer")),
         ("Last 12-month change", format_value(row["last_12_month_change"], "signed_integer")),
         ("Applications submitted", format_value(row["latest_applications_submitted"])),
         ("Eligibility determinations", format_value(row["latest_total_determinations"])),
+        ("Preliminary status", row["latest_month_preliminary_status"]),
         ("Data missingness", format_value(row["missingness_percent"], "percent")),
     ]
     return html.Div(
@@ -586,6 +623,184 @@ def build_operations_tab() -> html.Div:
     )
 
 
+def count_by(rows: list[dict[str, str]], field: str) -> list[dict[str, object]]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        counts[row[field]] = counts.get(row[field], 0) + 1
+    return [
+        {"label": label, "count": count}
+        for label, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)
+    ]
+
+
+def flag_count_bar(rows: list[dict[str, str]], field: str, title: str, limit: int = 12) -> go.Figure:
+    counts = count_by(rows, field)[:limit]
+    fig = go.Figure(
+        go.Bar(
+            x=[row["label"] for row in counts],
+            y=[row["count"] for row in counts],
+            marker_color="#276a62",
+            hovertemplate="%{x}<br>Review flags: %{y:,.0f}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        title=title,
+        margin={"l": 42, "r": 18, "t": 48, "b": 86},
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        xaxis_tickangle=-35,
+        yaxis_title="Review flags",
+    )
+    return fig
+
+
+def recent_change_bar() -> go.Figure:
+    ranked = sorted(
+        state_monitoring_rows,
+        key=lambda row: abs(to_float(row["last_12_month_change"]) or 0),
+        reverse=True,
+    )[:12]
+    values = [to_float(row["last_12_month_change"]) or 0 for row in ranked]
+    colors = ["#276a62" if value >= 0 else "#b45309" for value in values]
+    fig = go.Figure(
+        go.Bar(
+            x=[f"{row['state_name']} ({row['state_abbreviation']})" for row in ranked],
+            y=values,
+            marker_color=colors,
+            hovertemplate="%{x}<br>Last 12-month change: %{y:+,.0f}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        title="Largest Recent Enrollment Changes",
+        margin={"l": 42, "r": 18, "t": 48, "b": 100},
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        xaxis_tickangle=-35,
+        yaxis_title="Last 12-month change",
+    )
+    return fig
+
+
+def monitoring_table(rows: list[dict[str, str]], limit: int = 25) -> html.Table:
+    flag_labels = {
+        "large_month_over_month_enrollment_change": "Large month-over-month enrollment change",
+        "large_applications_spike": "Large applications spike",
+        "large_determinations_spike": "Large determinations spike",
+        "latest_month_preliminary_reporting_caution": "Latest-month preliminary reporting caution",
+        "high_missingness_caution": "High missingness caution",
+    }
+    columns = [
+        ("state_abbreviation", "State"),
+        ("reporting_month", "Month"),
+        ("flag_type", "Review flag"),
+        ("flag_description", "Description"),
+        ("metric_value", "Metric value"),
+        ("comparison_value", "Comparison"),
+    ]
+    return html.Table(
+        className="compact-table",
+        children=[
+            html.Thead(html.Tr([html.Th(label) for _, label in columns])),
+            html.Tbody(
+                [
+                    html.Tr(
+                        [
+                            html.Td(flag_labels.get(row.get(field, ""), row.get(field, "")))
+                            if field == "flag_type"
+                            else html.Td(row.get(field, ""))
+                            if field not in {"metric_value", "comparison_value"}
+                            else html.Td(format_value(row.get(field), "decimal"))
+                            for field, _ in columns
+                        ]
+                    )
+                    for row in rows[:limit]
+                ]
+            ),
+        ],
+    )
+
+
+def build_monitoring_tab() -> html.Div:
+    national = national_monitoring_rows[0]
+    return html.Div(
+        className="tab-page",
+        children=[
+            html.Div(
+                className="note-banner subdued",
+                children=(
+                    "Review flags identify unusual changes or reporting caveats that may deserve follow-up. "
+                    "They do not identify errors, performance failures, or causal effects."
+                ),
+            ),
+            html.Div(
+                className="kpi-grid compact",
+                children=[
+                    card("Total review flags", format_value(national["total_review_flags"]), "Across state-month monitoring outputs"),
+                    card("Enrollment change flags", format_value(national["enrollment_change_flag_count"]), "Large month-over-month changes"),
+                    card("Applications spike flags", format_value(national["applications_spike_flag_count"]), "Compared with recent state patterns"),
+                    card("Determinations spike flags", format_value(national["determinations_spike_flag_count"]), "Compared with recent state patterns"),
+                    card("Latest preliminary flags", format_value(national["latest_month_preliminary_flag_count"]), "Latest month reporting caution"),
+                    card("High missingness flags", format_value(national["high_missingness_flag_count"]), "Data quality caution"),
+                ],
+            ),
+            html.Div(
+                className="controls",
+                children=[
+                    html.Label(
+                        [
+                            html.Span("State filter"),
+                            dcc.Dropdown(
+                                id="monitoring-state-filter",
+                                options=selected_state_options_with_all(),
+                                value="ALL",
+                                clearable=False,
+                            ),
+                        ]
+                    ),
+                    html.Label(
+                        [
+                            html.Span("Review flag type"),
+                            dcc.Dropdown(
+                                id="monitoring-flag-filter",
+                                options=flag_type_options(),
+                                value="ALL",
+                                clearable=False,
+                            ),
+                        ]
+                    ),
+                ],
+            ),
+            html.Div(
+                className="two-column",
+                children=[
+                    html.Div(className="panel", children=[dcc.Graph(id="flags-by-state", config={"displayModeBar": False})]),
+                    html.Div(className="panel", children=[dcc.Graph(id="flags-by-month", config={"displayModeBar": False})]),
+                ],
+            ),
+            html.Div(
+                className="two-column",
+                children=[
+                    html.Div(className="panel", children=[dcc.Graph(figure=recent_change_bar(), config={"displayModeBar": False})]),
+                    html.Div(
+                        className="policy-note",
+                        children=[
+                            html.H2("How To Read Review Flags"),
+                            html.P(
+                                "Monitoring flags use transparent thresholds to identify records that warrant context review. "
+                                "They are prompts for source review and follow-up questions, not labels of state problems or policy impact."
+                            ),
+                            html.P(
+                                "Use these alongside source notes, preliminary reporting status, and data quality tables."
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(className="panel", children=[html.H2("State/Month Review Flags"), html.Div(id="monitoring-flags-table")]),
+        ],
+    )
+
+
 def table_from_rows(rows: list[dict[str, str]], columns: list[tuple[str, str]], limit: int = 10) -> html.Table:
     return html.Table(
         className="compact-table",
@@ -661,8 +876,8 @@ def build_about_tab() -> html.Div:
             html.Div(
                 className="two-column",
                 children=[
-                    html.Div(className="panel", children=[html.H2("What The Dashboard Can Show"), html.Ul([html.Li("National and state Medicaid/CHIP enrollment trends."), html.Li("Raw and population-adjusted state comparisons."), html.Li("Descriptive applications and eligibility determinations indicators."), html.Li("Data quality and preliminary reporting context.")])]),
-                    html.Div(className="panel", children=[html.H2("What The Dashboard Cannot Show"), html.Ul([html.Li("No beneficiary-level data."), html.Li("No county-level data."), html.Li("No claims, utilization, or cost data."), html.Li("No causal policy effects."), html.Li("Applications and determinations are not complete performance measures.")])]),
+                    html.Div(className="panel", children=[html.H2("What The Dashboard Can Show"), html.Ul([html.Li("Medicaid/CHIP enrollment trends."), html.Li("Medicaid vs CHIP patterns."), html.Li("State variation."), html.Li("Applications and eligibility determinations."), html.Li("Population-adjusted context."), html.Li("Data quality caveats."), html.Li("Review flags for unusual changes.")])]),
+                    html.Div(className="panel", children=[html.H2("What The Dashboard Cannot Show"), html.Ul([html.Li("No beneficiary-level outcomes."), html.Li("No county-level patterns."), html.Li("No claims, utilization, cost, or diagnosis data."), html.Li("No causal policy effects."), html.Li("No pending applications."), html.Li("No renewal volumes as clean standalone measures."), html.Li("No complete operations performance across all fields.")])]),
                 ],
             ),
         ],
@@ -681,8 +896,9 @@ app.layout = html.Div(
                 html.P("Medicaid Enrollment & Eligibility Operations Dashboard", className="eyebrow"),
                 html.H1("Healthcare Policy Analytics Dashboard"),
                 html.P(
-                    "A descriptive Medicaid/CHIP reporting tool combining enrollment trends, population context, "
-                    "eligibility operations indicators, and data quality interpretation.",
+                    "This dashboard reviews official public CMS Medicaid/CHIP data and helps users monitor "
+                    "enrollment trends, eligibility operations, population-adjusted context, state variation, "
+                    "and data quality caveats.",
                     className="header-copy",
                 ),
             ],
@@ -696,6 +912,7 @@ app.layout = html.Div(
                 dcc.Tab(label="Enrollment Maps", value="maps", children=build_maps_tab()),
                 dcc.Tab(label="Medicaid vs CHIP", value="chip", children=build_chip_tab()),
                 dcc.Tab(label="Eligibility Operations", value="operations", children=build_operations_tab()),
+                dcc.Tab(label="Monitoring Flags", value="monitoring", children=build_monitoring_tab()),
                 dcc.Tab(label="Data Quality", value="quality", children=build_quality_tab()),
                 dcc.Tab(label="About / Limitations", value="about", children=build_about_tab()),
             ],
@@ -758,6 +975,36 @@ def update_state_sections(selected_state: str):
         card("Determinations per application", format_value(selected["determinations_per_application"], "ratio")),
     ]
     return chip_fig, chip_summary, ops_fig, ops_summary
+
+
+@app.callback(
+    Output("flags-by-state", "figure"),
+    Output("flags-by-month", "figure"),
+    Output("monitoring-flags-table", "children"),
+    Input("monitoring-state-filter", "value"),
+    Input("monitoring-flag-filter", "value"),
+)
+def update_monitoring_flags(selected_state: str, flag_type: str):
+    filtered = monitoring_flag_rows
+    if selected_state and selected_state != "ALL":
+        filtered = [row for row in filtered if row["state_abbreviation"] == selected_state]
+    if flag_type and flag_type != "ALL":
+        filtered = [row for row in filtered if row["flag_type"] == flag_type]
+
+    if not filtered:
+        empty_fig = go.Figure()
+        empty_fig.update_layout(
+            title="No review flags match the selected filters",
+            paper_bgcolor="white",
+            plot_bgcolor="white",
+        )
+        return empty_fig, empty_fig, html.P("No review flags match the selected filters.")
+
+    return (
+        flag_count_bar(filtered, "state_abbreviation", "Review Flags By State"),
+        flag_count_bar(filtered, "reporting_month", "Review Flags By Month"),
+        monitoring_table(filtered),
+    )
 
 
 if __name__ == "__main__":

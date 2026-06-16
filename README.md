@@ -2,29 +2,30 @@
 
 ## About
 
-A healthcare policy analytics portfolio project focused on Medicaid/CHIP enrollment, eligibility operations, data quality, and policy-facing dashboard reporting using public CMS data.
+A healthcare policy analytics project that reviews official Medicaid/CHIP enrollment and eligibility operations data, validates source quality, and builds a descriptive monitoring workflow for state-level policy and operations context.
 
 ## Project Summary
 
-This repository will support a healthcare policy analytics portfolio project focused on public Medicaid and CHIP enrollment and eligibility operations data. The final project will combine source validation, data cleaning, policy context, and dashboard-ready outputs for analysis of Medicaid enrollment trends and operational indicators.
+This repository reviews official CMS/Data.Medicaid.gov Medicaid and CHIP enrollment and eligibility operations data to monitor state-level enrollment trends, application and determination patterns, population-adjusted context, data quality issues, and changes that may warrant further policy or operations review.
 
-This project emphasizes not only code, but also reproducible documentation, data quality checks, and policy-facing interpretation for healthcare analytics and Medicaid program reporting.
+The project emphasizes source review, reproducible documentation, data validation, diagnostic monitoring indicators, and policy-facing interpretation. It is descriptive and monitoring-focused; it does not make causal claims.
 
-Current status: Plotly Dash Version 1 expanded with dashboard tabs, state choropleth maps, and population-adjusted state context.
+Current status: Diagnostic monitoring workflow, population-adjusted state context, dashboard-ready tables, and Plotly Dash Version 1 are complete.
 
 ## Why Medicaid Enrollment And Eligibility Operations Matter
 
 Medicaid and CHIP enrollment data helps analysts, policy teams, and public-sector decision makers understand how coverage access changes over time. Eligibility operations measures can provide important context about application processing, renewals, procedural outcomes, and administrative workload. Together, these data can support better reporting, policy interpretation, and operational monitoring.
 
-## Target Roles
+## Intended Use
 
-This project is designed to support portfolio evidence for:
+This project is designed for source-aware public reporting and exploratory monitoring. It can help analysts, policy teams, and operations stakeholders review:
 
-- Healthcare data analyst roles
-- Healthcare business analyst roles
-- Medicaid policy research roles
-- Healthcare operations analytics roles
-- Public-sector data and reporting roles
+- state-level Medicaid/CHIP enrollment shifts
+- Medicaid vs CHIP enrollment context
+- applications and eligibility determinations activity
+- population-adjusted state comparisons
+- data quality and reporting caveats
+- neutral review flags that may warrant follow-up review
 
 ## Selected Data Source
 
@@ -103,9 +104,22 @@ Planned outputs include:
 - Data dictionary updates
 - Trend charts
 - State comparison figures
+- Diagnostic monitoring indicators
+- Neutral state/month review flags
 - Written source notes and limitations
 
 Version 1 will focus on policy analytics, data quality, and dashboard reporting. Causal inference, event studies, and forecasting are outside the initial scaffold and may be considered only after validated dashboard-ready data exists.
+
+## What This Project Helps Monitor
+
+- Enrollment shifts across states
+- Medicaid vs CHIP patterns
+- Applications and determinations activity
+- Population-adjusted enrollment context
+- State/month review flags
+- Data quality and reporting caveats
+
+Review flags are monitoring prompts, not problem labels or performance scores.
 
 ## Processed Outputs Created
 
@@ -125,6 +139,11 @@ Version 1 will focus on policy analytics, data quality, and dashboard reporting.
 - `outputs/dashboard_tables/state_eligibility_operations_summary.csv`
 - `outputs/dashboard_tables/state_map_metrics.csv`
 - `outputs/dashboard_tables/state_population_adjusted_metrics.csv`
+- `outputs/dashboard_tables/enrollment_change_from_peak.csv`
+- `outputs/dashboard_tables/state_population_adjusted_context.csv`
+- `outputs/dashboard_tables/monitoring_review_flags.csv`
+- `outputs/dashboard_tables/state_monitoring_summary.csv`
+- `outputs/dashboard_tables/national_monitoring_summary.csv`
 - `outputs/dashboard_tables/data_quality_by_field.csv`
 - `outputs/dashboard_tables/data_quality_by_state.csv`
 - `outputs/dashboard_tables/data_quality_by_month.csv`
@@ -152,6 +171,7 @@ Then open `http://127.0.0.1:8050`.
 - Eligibility operations reporting using applications and determinations
 - State-by-state comparison and dashboard table preparation
 - Population-adjusted enrollment context using official Census denominators
+- Diagnostic monitoring indicators and neutral review flags
 - Data quality, missingness, and preliminary/final reporting checks
 - Policy-facing interpretation without unsupported causal claims
 
@@ -171,14 +191,16 @@ medicaid-enrollment-policy-dashboard/
 │   └── data_dictionary.md
 ├── notebooks/
 │   ├── 01_data_ingestion_and_source_validation.ipynb
-│   └── 02_eda_and_dashboard_tables.ipynb
+│   ├── 02_eda_and_dashboard_tables.ipynb
+│   └── 03_diagnostic_monitoring_indicators.ipynb
 ├── src/
 │   ├── load_data.py
 │   ├── clean_medicaid_data.py
 │   ├── eda_medicaid.py
 │   ├── build_dashboard_tables.py
 │   ├── load_population_data.py
-│   └── build_population_adjusted_metrics.py
+│   ├── build_population_adjusted_metrics.py
+│   └── build_monitoring_indicators.py
 ├── outputs/
 │   ├── dashboard_tables/
 │   └── figures/
@@ -189,6 +211,8 @@ medicaid-enrollment-policy-dashboard/
     ├── data_viability_and_next_steps.md
     ├── eda_findings.md
     ├── population_denominator_notes.md
+    ├── monitoring_questions.md
+    ├── diagnostic_monitoring_plan.md
     └── limitations.md
 ```
 

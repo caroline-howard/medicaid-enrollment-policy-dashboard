@@ -10,7 +10,7 @@ This repository will support a healthcare policy analytics portfolio project foc
 
 This project emphasizes not only code, but also reproducible documentation, data quality checks, and policy-facing interpretation for healthcare analytics and Medicaid program reporting.
 
-Current status: Initial Plotly Dash State Map Explorer created; broader dashboard sections pending.
+Current status: Plotly Dash Version 1 expanded with dashboard tabs, state choropleth maps, and population-adjusted state context.
 
 ## Why Medicaid Enrollment And Eligibility Operations Matter
 
@@ -34,6 +34,12 @@ This project uses the official CMS/Data.Medicaid.gov dataset:
 - CSV download used by the ingestion script: `https://download.medicaid.gov/data/pi-dataset-may-2026-release.csv`
 - Reporting grain: monthly state-level aggregate data
 - Scope after cleaning: all 50 states plus DC, January 2019 through February 2026
+
+The dashboard also uses an official U.S. Census Bureau state population denominator source:
+
+- [Annual Estimates of the Resident Population: April 1, 2020 to July 1, 2024 (NST-EST2024-POP)](https://www2.census.gov/programs-surveys/popest/tables/2020-2024/state/totals/NST-EST2024-POP.xlsx)
+- Latest denominator year used in Version 1: 2024
+- Population-adjusted measures are descriptive context only and should not be described as healthcare utilization or usage rates.
 
 The raw CMS CSV is downloaded to `data/raw/`, which is excluded from Git. Processed, lightweight CSV outputs are saved in `data/processed/`.
 
@@ -81,13 +87,12 @@ Key descriptive findings:
 
 The dashboard is planned to include:
 
-- National enrollment overview
-- State-level enrollment comparisons
-- GIS-style State Map Explorer choropleth
-- Medicaid and CHIP trend views
-- Eligibility operations indicators
-- Reporting quality and missingness notes
-- Policy interpretation notes and limitations
+- Overview
+- Enrollment Maps
+- Medicaid vs CHIP
+- Eligibility Operations
+- Data Quality
+- About / Limitations
 
 ## Planned Analytics Outputs
 
@@ -108,6 +113,7 @@ Version 1 will focus on policy analytics, data quality, and dashboard reporting.
 - `data/processed/medicaid_state_month_summary.csv`
 - `data/processed/medicaid_sample_for_dashboard.csv`
 - `data/processed/data_quality_summary.csv`
+- `data/processed/state_population_denominators.csv`
 
 ## Dashboard-Ready Tables Created
 
@@ -118,6 +124,7 @@ Version 1 will focus on policy analytics, data quality, and dashboard reporting.
 - `outputs/dashboard_tables/state_enrollment_change.csv`
 - `outputs/dashboard_tables/state_eligibility_operations_summary.csv`
 - `outputs/dashboard_tables/state_map_metrics.csv`
+- `outputs/dashboard_tables/state_population_adjusted_metrics.csv`
 - `outputs/dashboard_tables/data_quality_by_field.csv`
 - `outputs/dashboard_tables/data_quality_by_state.csv`
 - `outputs/dashboard_tables/data_quality_by_month.csv`
@@ -125,7 +132,9 @@ Version 1 will focus on policy analytics, data quality, and dashboard reporting.
 
 The `state_map_metrics.csv` table provides one row per state/DC for the future State Map Explorer choropleth and selected state profile cards.
 
-The initial Dash app includes a state-level choropleth map and GIS-style spatial reporting section powered by `state_map_metrics.csv`. The map uses state-level aggregate data only; it does not create county-level, beneficiary-level, claims, utilization, or cost views.
+The Dash app includes a state-level choropleth map and GIS-style spatial reporting section powered by `state_map_metrics.csv` and `state_population_adjusted_metrics.csv`. The map uses state-level aggregate data only; it does not create county-level, beneficiary-level, claims, utilization, or cost views.
+
+Population-adjusted Medicaid/CHIP metrics include enrollment per 1,000 residents, Medicaid enrollment per 1,000 residents, CHIP enrollment per 1,000 residents, applications submitted per 100,000 residents, and eligibility determinations per 100,000 residents.
 
 ## Run The Dash App
 
@@ -142,6 +151,7 @@ Then open `http://127.0.0.1:8050`.
 - Medicaid/CHIP enrollment trend analysis
 - Eligibility operations reporting using applications and determinations
 - State-by-state comparison and dashboard table preparation
+- Population-adjusted enrollment context using official Census denominators
 - Data quality, missingness, and preliminary/final reporting checks
 - Policy-facing interpretation without unsupported causal claims
 
@@ -166,7 +176,9 @@ medicaid-enrollment-policy-dashboard/
 │   ├── load_data.py
 │   ├── clean_medicaid_data.py
 │   ├── eda_medicaid.py
-│   └── build_dashboard_tables.py
+│   ├── build_dashboard_tables.py
+│   ├── load_population_data.py
+│   └── build_population_adjusted_metrics.py
 ├── outputs/
 │   ├── dashboard_tables/
 │   └── figures/
@@ -176,12 +188,13 @@ medicaid-enrollment-policy-dashboard/
     ├── project_tasks.md
     ├── data_viability_and_next_steps.md
     ├── eda_findings.md
+    ├── population_denominator_notes.md
     └── limitations.md
 ```
 
 ## Next Steps
 
-1. Expand the Dash app beyond the State Map Explorer using the dashboard-ready tables in `outputs/dashboard_tables/`.
-2. Add national overview, state comparison, eligibility operations, data quality, and policy interpretation sections.
-3. Include visible caution language for preliminary latest-month data and high-missingness fields throughout the app.
-4. Add dashboard screenshots to the README after the full Version 1 app is built.
+1. Review the expanded Dash app tabs for wording and portfolio presentation.
+2. Add dashboard screenshots to the README after final visual QA.
+3. Consider deployment options such as Render, Railway, or another lightweight Dash hosting target.
+4. Keep forecasting, causal analysis, call center analysis, and processing-time analysis deferred until a separate validation step supports them.

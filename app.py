@@ -137,6 +137,16 @@ state_rows = read_rows(DASHBOARD_DIR / "state_population_adjusted_metrics.csv")
 state_map_rows = read_rows(DASHBOARD_DIR / "state_map_metrics.csv")
 national_enrollment = read_rows(DASHBOARD_DIR / "national_enrollment_trend.csv")
 national_ops = read_rows(DASHBOARD_DIR / "national_applications_determinations_trend.csv")
+national_balance_rows = read_rows(
+    DASHBOARD_DIR / "national_application_determination_balance_trend.csv"
+)
+balance_rows = read_rows(DASHBOARD_DIR / "application_determination_balance.csv")
+latest_balance_rows = read_rows(
+    DASHBOARD_DIR / "application_determination_balance_latest.csv"
+)
+top_balance_rows = read_rows(
+    DASHBOARD_DIR / "top_application_determination_balance_states.csv"
+)
 state_month_rows = read_rows(PROCESSED_DIR / "medicaid_state_month_summary.csv")
 quality_field_rows = read_rows(DASHBOARD_DIR / "data_quality_by_field.csv")
 quality_state_rows = read_rows(DASHBOARD_DIR / "data_quality_by_state.csv")
@@ -147,6 +157,7 @@ state_monitoring_rows = read_rows(DASHBOARD_DIR / "state_monitoring_summary.csv"
 national_monitoring_rows = read_rows(DASHBOARD_DIR / "national_monitoring_summary.csv")
 
 state_lookup = {row["state_abbreviation"]: row for row in state_rows}
+latest_balance_lookup = {row["state_abbreviation"]: row for row in latest_balance_rows}
 peak_lookup = {row["state_abbreviation"]: row for row in peak_change_rows}
 state_monitoring_lookup = {
     row["state_abbreviation"]: row for row in state_monitoring_rows
@@ -154,6 +165,9 @@ state_monitoring_lookup = {
 state_month_lookup: dict[str, list[dict[str, str]]] = {}
 for row in state_month_rows:
     state_month_lookup.setdefault(row["state_abbreviation"], []).append(row)
+balance_lookup: dict[str, list[dict[str, str]]] = {}
+for row in balance_rows:
+    balance_lookup.setdefault(row["state_abbreviation"], []).append(row)
 
 latest_month = month_label(state_rows[0]["latest_reporting_month"])
 population_year = state_rows[0]["population_denominator_year"]
@@ -589,6 +603,10 @@ def state_trend_rows(selected_state: str) -> list[dict[str, str]]:
     return state_month_lookup.get(selected_state, [])
 
 
+def state_balance_rows(selected_state: str) -> list[dict[str, str]]:
+    return balance_lookup.get(selected_state, [])
+
+
 def build_chip_tab() -> html.Div:
     return html.Div(
         className="tab-page",
@@ -612,6 +630,14 @@ def build_operations_tab() -> html.Div:
         children=[
             html.Div(className="note-banner subdued", children="Eligibility operations metrics are descriptive operational indicators, not performance scores."),
             html.Div(
+                className="note-banner subdued",
+                children=(
+                    "Application-Determination Balance compares same-month applications submitted with "
+                    "Medicaid/CHIP determinations. It is a descriptive operations indicator and should "
+                    "not be interpreted as backlog, timeliness, approval rate, or performance."
+                ),
+            ),
+            html.Div(
                 className="two-column",
                 children=[
                     html.Div(className="panel", children=[html.H2("National Applications And Determinations"), dcc.Graph(figure=line_figure(national_ops, [("applications_submitted", "Applications submitted"), ("total_medicaid_and_chip_determinations", "Determinations")]), config={"displayModeBar": False})]),
@@ -619,6 +645,90 @@ def build_operations_tab() -> html.Div:
                 ],
             ),
             html.Div(id="state-operations-summary", className="kpi-grid compact"),
+            html.Div(
+                className="two-column",
+                children=[
+                    html.Div(
+                        className="panel",
+                        children=[
+                            html.H2("National Application-Determination Balance Trend"),
+                            dcc.Graph(
+                                figure=line_figure(
+                                    national_balance_rows,
+                                    [
+                                        (
+                                            "application_determination_balance",
+                                            "Application-Determination Balance",
+                                        )
+                                    ],
+                                ),
+                                config={"displayModeBar": False},
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        className="panel",
+                        children=[
+                            html.H2("Selected State Balance Trend"),
+                            dcc.Graph(id="state-balance-trend", config={"displayModeBar": False}),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(id="state-balance-summary", className="kpi-grid compact"),
+            html.Div(
+                className="panel",
+                children=[
+                    html.H2("Latest State Balance Table"),
+                    balance_top_table(),
+                ],
+            ),
+        ],
+    )
+
+
+def balance_top_table() -> html.Table:
+    group_labels = {
+        "highest_positive_balance_per_100000_residents": "Highest positive balance",
+        "highest_negative_balance_per_100000_residents": "Highest negative balance",
+    }
+    return html.Table(
+        className="compact-table",
+        children=[
+            html.Thead(
+                html.Tr(
+                    [
+                        html.Th("Group"),
+                        html.Th("Rank"),
+                        html.Th("State"),
+                        html.Th("Latest month"),
+                        html.Th("Balance"),
+                        html.Th("Balance per 100,000 residents"),
+                    ]
+                )
+            ),
+            html.Tbody(
+                [
+                    html.Tr(
+                        [
+                            html.Td(group_labels.get(row["direction"], row["direction"])),
+                            html.Td(row["rank"]),
+                            html.Td(row["state_abbreviation"]),
+                            html.Td(row["latest_reporting_month"]),
+                            html.Td(format_value(row["application_determination_balance"], "signed_integer")),
+                            html.Td(
+                                format_value(
+                                    row[
+                                        "application_determination_balance_per_100000_residents"
+                                    ],
+                                    "decimal",
+                                )
+                            ),
+                        ]
+                    )
+                    for row in top_balance_rows
+                ]
+            ),
         ],
     )
 
@@ -966,6 +1076,8 @@ def update_map(metric_key: str, selected_state: str):
     Output("state-chip-summary", "children"),
     Output("state-operations-trend", "figure"),
     Output("state-operations-summary", "children"),
+    Output("state-balance-trend", "figure"),
+    Output("state-balance-summary", "children"),
     Input("state-selector", "value"),
 )
 def update_state_sections(selected_state: str):
@@ -973,8 +1085,14 @@ def update_state_sections(selected_state: str):
         selected_state = "CA"
     selected = state_lookup[selected_state]
     rows = state_trend_rows(selected_state)
+    balance = latest_balance_lookup.get(selected_state, {})
+    balance_trend_rows = state_balance_rows(selected_state)
     chip_fig = line_figure(rows, [("total_medicaid_enrollment", "Medicaid"), ("total_chip_enrollment", "CHIP")])
     ops_fig = line_figure(rows, [("total_applications_for_financial_assistance_submitted_at_state_level", "Applications submitted"), ("total_medicaid_and_chip_determinations", "Determinations")])
+    balance_fig = line_figure(
+        balance_trend_rows,
+        [("application_determination_balance", "Application-Determination Balance")],
+    )
     chip_summary = [
         card("Selected state", f"{selected['state_name']} ({selected_state})"),
         card("Latest Medicaid enrollment", format_value(selected["latest_medicaid_enrollment"])),
@@ -990,7 +1108,14 @@ def update_state_sections(selected_state: str):
         card("Applications per 1,000 enrollees", format_value(selected["applications_per_1000_enrollees"], "decimal")),
         card("Determinations per application", format_value(selected["determinations_per_application"], "ratio")),
     ]
-    return chip_fig, chip_summary, ops_fig, ops_summary
+    balance_summary = [
+        card("Selected state balance", format_value(balance.get("application_determination_balance"), "signed_integer"), "Applications minus determinations"),
+        card("Balance per 100,000 residents", format_value(balance.get("application_determination_balance_per_100000_residents"), "decimal"), "Population-adjusted context"),
+        card("Applications submitted", format_value(balance.get("applications_submitted")), "Latest month"),
+        card("Eligibility determinations", format_value(balance.get("total_medicaid_chip_determinations")), "Latest month"),
+        card("Determinations per application", format_value(balance.get("determinations_per_application"), "ratio"), "Descriptive relationship"),
+    ]
+    return chip_fig, chip_summary, ops_fig, ops_summary, balance_fig, balance_summary
 
 
 @app.callback(

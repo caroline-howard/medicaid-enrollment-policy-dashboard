@@ -30,8 +30,12 @@ Population-adjusted measures provide descriptive state-size context. They should
 - Determinations per application
 - Applications per 1,000 enrollees
 - Determinations per 1,000 enrollees
+- Application-Determination Balance
+- Application-Determination Balance per 100,000 residents
 
 These are descriptive operational indicators, not performance scores. Applications and determinations are monthly flow measures and should be interpreted alongside enrollment, reporting status, and source limitations.
+
+Application-Determination Balance compares same-month applications submitted with Medicaid/CHIP determinations. It is useful for monitoring divergence between application volume and determination activity, but it is not a backlog metric, approval rate, timeliness measure, or state performance score.
 
 ## D. Review Flags, Not Problem Labels
 

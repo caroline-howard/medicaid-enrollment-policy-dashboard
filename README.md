@@ -116,6 +116,7 @@ Version 1 will focus on policy analytics, data quality, and dashboard reporting.
 - Enrollment shifts across states
 - Medicaid vs CHIP patterns
 - Applications and determinations activity
+- Application-Determination Balance as a descriptive eligibility operations diagnostic
 - Population-adjusted enrollment context
 - State/month review flags
 - Data quality and reporting caveats
@@ -149,6 +150,11 @@ This dashboard is designed for descriptive monitoring and policy context, not ca
 - `outputs/dashboard_tables/monitoring_review_flags.csv`
 - `outputs/dashboard_tables/state_monitoring_summary.csv`
 - `outputs/dashboard_tables/national_monitoring_summary.csv`
+- `outputs/dashboard_tables/application_determination_balance.csv`
+- `outputs/dashboard_tables/application_determination_balance_latest.csv`
+- `outputs/dashboard_tables/national_application_determination_balance_trend.csv`
+- `outputs/dashboard_tables/top_application_determination_balance_states.csv`
+- `outputs/dashboard_tables/application_determination_balance_summary.csv`
 - `outputs/dashboard_tables/data_quality_by_field.csv`
 - `outputs/dashboard_tables/data_quality_by_state.csv`
 - `outputs/dashboard_tables/data_quality_by_month.csv`
@@ -161,6 +167,8 @@ The Dash app includes a state-level choropleth map and GIS-style spatial reporti
 Population-adjusted Medicaid/CHIP metrics include enrollment per 1,000 residents, Medicaid enrollment per 1,000 residents, CHIP enrollment per 1,000 residents, applications submitted per 100,000 residents, and eligibility determinations per 100,000 residents.
 
 The Monitoring Flags tab uses `monitoring_review_flags.csv` to help users review unusual state/month changes and reporting caveats. Review flags are context prompts, not problem labels, performance failures, or causal findings.
+
+The project also includes Application-Determination Balance, a descriptive eligibility operations metric comparing same-month applications submitted and Medicaid/CHIP determinations. It is not a backlog metric, approval rate, timeliness measure, or performance score.
 
 ## Run The Dash App
 
@@ -176,6 +184,7 @@ Then open `http://127.0.0.1:8050`.
 - Source validation and data dictionary documentation
 - Medicaid/CHIP enrollment trend analysis
 - Eligibility operations reporting using applications and determinations
+- Application-Determination Balance for descriptive operations monitoring
 - State-by-state comparison and dashboard table preparation
 - Population-adjusted enrollment context using official Census denominators
 - Diagnostic monitoring indicators and neutral review flags

@@ -1,0 +1,21 @@
+direction,rank,state_abbreviation,state_name,latest_reporting_month,application_determination_balance,application_determination_balance_per_100000_residents
+highest_positive_balance_per_100000_residents,1,NY,New York,2026-02-01,471107.000000,2371.274572
+highest_positive_balance_per_100000_residents,2,WA,Washington,2026-02-01,109711.000000,1378.594101
+highest_positive_balance_per_100000_residents,3,IL,Illinois,2026-02-01,95008.000000,747.496609
+highest_positive_balance_per_100000_residents,4,MD,Maryland,2026-02-01,40248.000000,642.608754
+highest_positive_balance_per_100000_residents,5,WV,West Virginia,2026-02-01,10875.000000,614.414069
+highest_positive_balance_per_100000_residents,6,KS,Kansas,2026-02-01,12355.000000,415.908404
+highest_positive_balance_per_100000_residents,7,FL,Florida,2026-02-01,95589.000000,408.985627
+highest_positive_balance_per_100000_residents,8,VT,Vermont,2026-02-01,2135.000000,329.224834
+highest_positive_balance_per_100000_residents,9,GA,Georgia,2026-02-01,35329.000000,315.976974
+highest_positive_balance_per_100000_residents,10,LA,Louisiana,2026-02-01,14111.000000,306.911657
+highest_negative_balance_per_100000_residents,1,OR,Oregon,2026-02-01,-209376.000000,-4900.697996
+highest_negative_balance_per_100000_residents,2,SD,South Dakota,2026-02-01,-13935.000000,-1507.025757
+highest_negative_balance_per_100000_residents,3,OK,Oklahoma,2026-02-01,-32110.000000,-784.051738
+highest_negative_balance_per_100000_residents,4,UT,Utah,2026-02-01,-14077.000000,-401.785243
+highest_negative_balance_per_100000_residents,5,NC,North Carolina,2026-02-01,-14830.000000,-134.256453
+highest_negative_balance_per_100000_residents,6,WY,Wyoming,2026-02-01,-697.000000,-118.614474
+highest_negative_balance_per_100000_residents,7,HI,Hawaii,2026-02-01,-783.000000,-54.143911
+highest_negative_balance_per_100000_residents,8,RI,Rhode Island,2026-02-01,-553.000000,-49.716445
+highest_negative_balance_per_100000_residents,9,KY,Kentucky,2026-02-01,-2153.000000,-46.922961
+highest_negative_balance_per_100000_residents,10,ME,Maine,2026-02-01,-628.000000,-44.697127

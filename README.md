@@ -84,17 +84,19 @@ Key descriptive findings:
 - Applications and eligibility determinations support descriptive operations analysis, but they should not be treated as complete performance metrics.
 - Adult enrollment, call center, and processing-time fields have high missingness and should be used cautiously.
 
-## Planned Dashboard Sections
+## Dashboard Sections
 
-The dashboard is planned to include:
+The redesigned Plotly Dash app includes story-driven tabs:
 
-- Overview
-- Enrollment Maps
-- Medicaid vs CHIP
+- National Snapshot
+- State Map Explorer
+- Medicaid vs CHIP Drivers
 - Eligibility Operations
 - Monitoring Flags
-- Data Quality
-- About / Limitations
+- Data Quality Review
+- Methods & Limits
+
+The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. It includes concise global caveats, question-based tab headers, interactive Plotly time-series explorers with range sliders and range selector buttons, and a professional footer emphasizing descriptive monitoring only.
 
 ## Planned Analytics Outputs
 
@@ -160,9 +162,13 @@ This dashboard is designed for descriptive monitoring and policy context, not ca
 - `outputs/dashboard_tables/data_quality_by_month.csv`
 - `outputs/dashboard_tables/dashboard_notes.csv`
 
-The `state_map_metrics.csv` table provides one row per state/DC for the future State Map Explorer choropleth and selected state profile cards.
+The `state_map_metrics.csv` table provides one row per state/DC for State Map Explorer context and selected state profile cards.
 
-The Dash app includes a state-level choropleth map and GIS-style spatial reporting section powered by `state_map_metrics.csv` and `state_population_adjusted_metrics.csv`. The map uses state-level aggregate data only; it does not create county-level, beneficiary-level, claims, utilization, or cost views.
+The Dash app includes a GIS-style State Map Explorer with a linked U.S. choropleth map, ranked horizontal state bar chart, metric selector, reporting-month time control, Top 10/Bottom 10/All ranking control, selected state snapshot, and selected state self-comparison panel. The map uses state-level aggregate data only; it does not create county-level, beneficiary-level, claims, utilization, or cost views.
+
+The selected state self-comparison view shows January 2019 baseline enrollment, peak enrollment, latest enrollment, change since January 2019, change from peak, last-12-month change, Medicaid/CHIP component values, applications, determinations, and Application-Determination Balance where available.
+
+The Medicaid vs CHIP Drivers tab shows national and selected-state Medicaid vs CHIP split views plus a selected-state component trend explorer.
 
 Population-adjusted Medicaid/CHIP metrics include enrollment per 1,000 residents, Medicaid enrollment per 1,000 residents, CHIP enrollment per 1,000 residents, applications submitted per 100,000 residents, and eligibility determinations per 100,000 residents.
 

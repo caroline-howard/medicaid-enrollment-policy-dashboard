@@ -122,6 +122,10 @@ Version 1 will focus on policy analytics, data quality, and dashboard reporting.
 
 Review flags are monitoring prompts, not problem labels or performance scores.
 
+## Policy Context
+
+This dashboard is designed for descriptive monitoring and policy context, not causal policy evaluation. See [docs/policy_context.md](docs/policy_context.md) for plain-language context on Medicaid/CHIP state variation, MAGI eligibility, Medicaid expansion, COVID continuous enrollment and unwinding, applications and determinations, population denominators, and dataset limitations.
+
 ## Processed Outputs Created
 
 - `data/processed/medicaid_enrollment_clean.csv`
@@ -216,6 +220,7 @@ medicaid-enrollment-policy-dashboard/
     ├── population_denominator_notes.md
     ├── monitoring_questions.md
     ├── diagnostic_monitoring_plan.md
+    ├── policy_context.md
     └── limitations.md
 ```
 

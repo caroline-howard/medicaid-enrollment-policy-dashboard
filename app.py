@@ -867,6 +867,22 @@ def build_about_tab() -> html.Div:
             html.Div(
                 className="policy-note wide",
                 children=[
+                    html.H2("Policy Context"),
+                    html.Ul(
+                        [
+                            html.Li("Medicaid and CHIP are state-federal coverage programs, and states administer them within federal rules."),
+                            html.Li("State variation in eligibility rules, program structure, reporting practices, and administrative processes affects comparisons."),
+                            html.Li("Pandemic-era continuous enrollment and the post-2023 unwinding period are important context for interpreting enrollment changes."),
+                            html.Li("Population-adjusted metrics help compare states of different sizes, but they are not usage rates or healthcare utilization measures."),
+                            html.Li("Applications and determinations are descriptive operations indicators, not approval rates, timeliness measures, or performance scores."),
+                            html.Li("The dashboard supports descriptive monitoring and context review; it does not estimate causal policy effects."),
+                        ]
+                    ),
+                ],
+            ),
+            html.Div(
+                className="policy-note wide",
+                children=[
                     html.H2("Data Sources And Coverage"),
                     html.P("Medicaid data source: CMS/Data.Medicaid.gov State Medicaid and CHIP Applications, Eligibility Determinations, and Enrollment Data."),
                     html.P("Population denominator source: U.S. Census Bureau NST-EST2024-POP annual resident population estimates."),

@@ -96,7 +96,7 @@ The redesigned Plotly Dash app includes story-driven tabs:
 - Data Quality Review
 - Methods & Limits
 
-The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. It includes concise global caveats, question-based tab headers, interactive Plotly time-series explorers with range sliders and range selector buttons, and a professional footer emphasizing descriptive monitoring only.
+The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. It includes concise global caveats, question-based tab headers, interactive Plotly time-series explorers with range sliders, range selector buttons, reference markers, baseline/peak/latest summaries, indexed trend options, and interpretation cards. A professional footer emphasizes descriptive monitoring only.
 
 ## Planned Analytics Outputs
 

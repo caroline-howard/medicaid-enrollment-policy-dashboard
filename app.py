@@ -120,6 +120,19 @@ def format_value(value: str | int | float | None, kind: str = "integer") -> str:
     return str(value)
 
 
+def format_short(value: str | int | float | None) -> str:
+    numeric = to_float(value)
+    if numeric is None:
+        return "n/a"
+    sign = "-" if numeric < 0 else ""
+    numeric = abs(numeric)
+    if numeric >= 1_000_000:
+        return f"{sign}{numeric / 1_000_000:.1f}M"
+    if numeric >= 1_000:
+        return f"{sign}{numeric / 1_000:.0f}K"
+    return f"{sign}{numeric:.0f}"
+
+
 def month_label(value: str) -> str:
     if not value:
         return "Not available"
@@ -301,29 +314,80 @@ def line_figure(
     title: str | None = None,
     subtitle: str | None = None,
     y_axis_title: str | None = None,
+    x_axis_title: str = "Reporting month",
+    scope_label: str = "National",
+    value_kind: str = "integer",
+    reference_lines: list[tuple[str, str]] | None = None,
+    add_latest_labels: bool = True,
+    height: int = 430,
 ) -> go.Figure:
     fig = go.Figure()
     x_values = [row["reporting_month"] for row in rows]
     for field, label in traces:
+        y_values = [to_float(row.get(field)) for row in rows]
+        customdata = [
+            [
+                scope_label,
+                label,
+                "Preliminary" if row.get("preliminary_or_updated") == "P" else row.get("latest_month_preliminary_status", "Final/updated"),
+            ]
+            for row in rows
+        ]
         fig.add_trace(
             go.Scatter(
                 x=x_values,
-                y=[to_float(row.get(field)) for row in rows],
+                y=y_values,
                 mode="lines",
                 name=label,
-                hovertemplate=f"{label}: %{{y:,.0f}}<br>Month: %{{x|%b %Y}}<extra></extra>",
+                customdata=customdata,
+                line={"width": 2.8},
+                hovertemplate=(
+                    "Scope: %{customdata[0]}<br>"
+                    "Reporting month: %{x|%b %Y}<br>"
+                    "Metric: %{customdata[1]}<br>"
+                    "Value: %{y:,.2f}<br>"
+                    "Reporting status: %{customdata[2]}<extra></extra>"
+                ),
             )
         )
+        if add_latest_labels:
+            latest_points = [(x, y) for x, y in zip(x_values, y_values) if y is not None]
+            if latest_points:
+                latest_x, latest_y = latest_points[-1]
+                fig.add_annotation(
+                    x=latest_x,
+                    y=latest_y,
+                    text=f"{label}: {format_short(latest_y) if value_kind == 'integer' else format_value(latest_y, 'decimal')}",
+                    showarrow=False,
+                    xanchor="left",
+                    xshift=8,
+                    font={"size": 11, "color": "#243746"},
+                    bgcolor="rgba(255,255,255,0.78)",
+                    bordercolor="#dce2df",
+                    borderwidth=1,
+                )
+    for reference_date, label in reference_lines or []:
+        if reference_date in x_values:
+            fig.add_vline(
+                x=reference_date,
+                line_width=1,
+                line_dash="dash",
+                line_color="#b7791f",
+                annotation_text=label,
+                annotation_position="top left",
+                annotation_font_size=10,
+            )
     fig.update_layout(
         title={"text": f"{title}<br><sup>{subtitle}</sup>" if title and subtitle else title},
-        margin={"l": 40, "r": 20, "t": 34, "b": 34},
+        margin={"l": 58, "r": 90 if add_latest_labels else 24, "t": 84 if title else 38, "b": 48},
+        height=height,
         hovermode="x unified",
-        legend={"orientation": "h", "y": -0.22},
+        legend={"orientation": "h", "y": -0.32, "font": {"size": 12}},
         paper_bgcolor="white",
         plot_bgcolor="white",
-        xaxis_title=None,
-        yaxis_title=y_axis_title,
+        font={"family": "Inter, Arial, sans-serif", "color": "#253746"},
         xaxis={
+            "title": x_axis_title,
             "rangeslider": {"visible": True, "thickness": 0.08},
             "rangeselector": {
                 "buttons": [
@@ -332,7 +396,10 @@ def line_figure(
                     {"step": "all", "label": "All"},
                 ]
             },
+            "showgrid": True,
+            "gridcolor": "#e8eef0",
         },
+        yaxis={"title": y_axis_title, "showgrid": True, "gridcolor": "#eef2f3", "rangemode": "normal"},
         updatemenus=[
             {
                 "type": "buttons",
@@ -563,7 +630,10 @@ def build_overview_tab() -> html.Div:
                                         ("total_chip_enrollment", "CHIP"),
                                     ],
                                     "National Medicaid/CHIP Enrollment Over Time",
-                                    "Use the range slider and selector buttons to inspect specific periods.",
+                                    f"Question: How did public coverage enrollment change from January 2019 through {latest_month}?",
+                                    "Enrollment count",
+                                    scope_label="National",
+                                    reference_lines=[(POST_PEAK_CONTEXT_MONTH, "April 2023 reference point")],
                                 ),
                                 config={"displayModeBar": False},
                             ),
@@ -581,7 +651,10 @@ def build_overview_tab() -> html.Div:
                                         ("total_medicaid_and_chip_determinations", "Eligibility determinations"),
                                     ],
                                     "National Eligibility Operations Over Time",
-                                    "Same-month applications and determinations are descriptive operations indicators.",
+                                    f"Question: How did applications and determinations move from January 2019 through {latest_month}?",
+                                    "Applications / determinations",
+                                    scope_label="National",
+                                    reference_lines=[(POST_PEAK_CONTEXT_MONTH, "April 2023 reference point")],
                                 ),
                                 config={"displayModeBar": False},
                             ),
@@ -939,6 +1012,81 @@ def state_balance_rows(selected_state: str) -> list[dict[str, str]]:
     return balance_lookup.get(selected_state, [])
 
 
+def state_enrollment_story(selected_state: str) -> dict[str, object]:
+    rows = state_trend_rows(selected_state)
+    baseline = row_for_state_month(selected_state, BASELINE_MONTH) or rows[0]
+    latest = rows[-1]
+    peak = max(rows, key=lambda record: to_float(record.get("total_medicaid_and_chip_enrollment")) or 0)
+    prior_12 = row_months_before(selected_state, latest["reporting_month"]) or {}
+    baseline_value = to_float(baseline.get("total_medicaid_and_chip_enrollment"))
+    latest_value = to_float(latest.get("total_medicaid_and_chip_enrollment"))
+    peak_value = to_float(peak.get("total_medicaid_and_chip_enrollment"))
+    prior_12_value = to_float(prior_12.get("total_medicaid_and_chip_enrollment"))
+    return {
+        "baseline": baseline,
+        "latest": latest,
+        "peak": peak,
+        "prior_12": prior_12,
+        "baseline_value": baseline_value,
+        "latest_value": latest_value,
+        "peak_value": peak_value,
+        "prior_12_value": prior_12_value,
+        "change_from_baseline": latest_value - baseline_value if latest_value is not None and baseline_value is not None else None,
+        "percent_change_from_baseline": percent_change(latest_value, baseline_value),
+        "change_from_peak": latest_value - peak_value if latest_value is not None and peak_value is not None else None,
+        "percent_change_from_peak": percent_change(latest_value, peak_value),
+        "last_12_month_change": latest_value - prior_12_value if latest_value is not None and prior_12_value is not None else None,
+        "last_12_month_percent_change": percent_change(latest_value, prior_12_value),
+    }
+
+
+def state_summary_cards(selected_state: str) -> list[html.Div]:
+    story = state_enrollment_story(selected_state)
+    return [
+        card("Baseline enrollment", format_value(story["baseline_value"]), month_label(story["baseline"]["reporting_month"])),
+        card("Peak enrollment", format_value(story["peak_value"]), month_label(story["peak"]["reporting_month"])),
+        card("Latest enrollment", format_value(story["latest_value"]), month_label(story["latest"]["reporting_month"])),
+        card("Change from baseline", format_value(story["change_from_baseline"], "signed_integer"), format_value(story["percent_change_from_baseline"], "percent")),
+        card("Change from peak", format_value(story["change_from_peak"], "signed_integer"), format_value(story["percent_change_from_peak"], "percent")),
+        card("Last 12-month change", format_value(story["last_12_month_change"], "signed_integer"), format_value(story["last_12_month_percent_change"], "percent")),
+    ]
+
+
+def component_change_focus(medicaid_change: float | None, chip_change: float | None) -> str:
+    if medicaid_change is None or chip_change is None:
+        return "the available component fields"
+    medicaid_abs = abs(medicaid_change)
+    chip_abs = abs(chip_change)
+    if medicaid_abs == 0 and chip_abs == 0:
+        return "neither component"
+    if medicaid_abs > chip_abs * 1.25:
+        return "Medicaid"
+    if chip_abs > medicaid_abs * 1.25:
+        return "CHIP"
+    return "both Medicaid and CHIP"
+
+
+def chip_trend_rows(rows: list[dict[str, str]], mode: str) -> list[dict[str, str | float | None]]:
+    baseline = rows[0]
+    baseline_medicaid = to_float(baseline.get("total_medicaid_enrollment"))
+    baseline_chip = to_float(baseline.get("total_chip_enrollment"))
+    output = []
+    for row in rows:
+        medicaid = to_float(row.get("total_medicaid_enrollment"))
+        chip = to_float(row.get("total_chip_enrollment"))
+        if mode == "indexed":
+            output.append(
+                {
+                    **row,
+                    "medicaid_series": ratio(medicaid, baseline_medicaid, 100),
+                    "chip_series": ratio(chip, baseline_chip, 100),
+                }
+            )
+        else:
+            output.append({**row, "medicaid_series": medicaid, "chip_series": chip})
+    return output
+
+
 def latest_split_bar(selected_state: str | None = None) -> go.Figure:
     if selected_state and selected_state in state_lookup:
         row = state_lookup[selected_state]
@@ -988,11 +1136,33 @@ def build_chip_tab() -> html.Div:
             html.Div(
                 className="panel",
                 children=[
-                    html.H2("Selected State Medicaid Vs CHIP Trend Explorer"),
+                    html.Div(
+                        className="chart-card-header",
+                        children=[
+                            html.Div(
+                                children=[
+                                    html.H2("Selected State Medicaid Vs CHIP Trend Explorer"),
+                                    html.P("Raw counts show program size; indexed view shows relative movement since Jan. 2019."),
+                                ]
+                            ),
+                            dcc.RadioItems(
+                                id="chip-trend-mode",
+                                options=[
+                                    {"label": "Raw count", "value": "raw"},
+                                    {"label": "Indexed to Jan. 2019 = 100", "value": "indexed"},
+                                ],
+                                value="indexed",
+                                inline=True,
+                                className="segmented-control",
+                            ),
+                        ],
+                    ),
+                    html.Div(id="state-chip-component-summary", className="kpi-grid compact"),
                     dcc.Graph(id="state-chip-trend", config={"displayModeBar": False}),
                 ],
             ),
             html.Div(id="state-chip-summary", className="kpi-grid compact"),
+            html.Div(id="state-chip-interpretation", className="policy-note wide"),
             html.Div(
                 className="policy-note wide",
                 children=[
@@ -1544,45 +1714,104 @@ def select_state_from_visuals(map_click, bar_click):
 @app.callback(
     Output("state-chip-split", "figure"),
     Output("state-chip-trend", "figure"),
+    Output("state-chip-component-summary", "children"),
     Output("state-chip-summary", "children"),
+    Output("state-chip-interpretation", "children"),
     Output("state-operations-trend", "figure"),
     Output("state-operations-summary", "children"),
     Output("state-balance-trend", "figure"),
     Output("state-balance-summary", "children"),
     Input("state-selector", "value"),
+    Input("chip-trend-mode", "value"),
 )
-def update_state_sections(selected_state: str):
+def update_state_sections(selected_state: str, chip_trend_mode: str):
     if selected_state not in state_lookup:
         selected_state = "CA"
+    if chip_trend_mode not in {"raw", "indexed"}:
+        chip_trend_mode = "indexed"
     selected = state_lookup[selected_state]
     rows = state_trend_rows(selected_state)
+    story = state_enrollment_story(selected_state)
     balance = latest_balance_lookup.get(selected_state, {})
     balance_trend_rows = state_balance_rows(selected_state)
     chip_split = latest_split_bar(selected_state)
+    chip_rows = chip_trend_rows(rows, chip_trend_mode)
+    latest_row = rows[-1]
+    baseline_row = row_for_state_month(selected_state, BASELINE_MONTH) or rows[0]
+    peak_row = story["peak"]
+    latest_medicaid = to_float(latest_row.get("total_medicaid_enrollment"))
+    latest_chip = to_float(latest_row.get("total_chip_enrollment"))
+    latest_total = to_float(latest_row.get("total_medicaid_and_chip_enrollment"))
+    baseline_medicaid = to_float(baseline_row.get("total_medicaid_enrollment"))
+    baseline_chip = to_float(baseline_row.get("total_chip_enrollment"))
+    medicaid_change = latest_medicaid - baseline_medicaid if latest_medicaid is not None and baseline_medicaid is not None else None
+    chip_change = latest_chip - baseline_chip if latest_chip is not None and baseline_chip is not None else None
+    focus = component_change_focus(medicaid_change, chip_change)
+    chip_y_axis = "Enrollment count" if chip_trend_mode == "raw" else "Indexed enrollment, Jan. 2019 = 100"
+    chip_value_kind = "integer" if chip_trend_mode == "raw" else "decimal"
     chip_fig = line_figure(
-        rows,
-        [("total_medicaid_enrollment", "Medicaid"), ("total_chip_enrollment", "CHIP")],
-        f"{selected['state_name']} Medicaid And CHIP Enrollment",
-        "Separate component trends help show whether changes are concentrated in Medicaid, CHIP, or both.",
+        chip_rows,
+        [("medicaid_series", "Medicaid enrollment"), ("chip_series", "CHIP enrollment")],
+        f"{selected['state_name']} Medicaid vs CHIP Enrollment Components, {month_label(BASELINE_MONTH)}-{latest_month}",
+        "Raw counts show program size; indexed view shows relative movement since Jan. 2019. Latest month may be preliminary.",
+        chip_y_axis,
+        scope_label=selected["state_name"],
+        value_kind=chip_value_kind,
+        reference_lines=[
+            (BASELINE_MONTH, "Jan. 2019 baseline"),
+            (peak_row["reporting_month"], "Selected state peak enrollment"),
+            (latest_row["reporting_month"], "Latest month"),
+        ],
     )
     ops_fig = line_figure(
         rows,
         [("total_applications_for_financial_assistance_submitted_at_state_level", "Applications submitted"), ("total_medicaid_and_chip_determinations", "Determinations")],
-        f"{selected['state_name']} Applications And Determinations",
-        "Same-month fields are descriptive operations indicators.",
+        f"{selected['state_name']} Applications And Determinations, {month_label(BASELINE_MONTH)}-{latest_month}",
+        "Question: How do same-month applications and determinations compare over time?",
+        "Applications / determinations",
+        scope_label=selected["state_name"],
+        reference_lines=[
+            (POST_PEAK_CONTEXT_MONTH, "April 2023 reference point"),
+            (latest_row["reporting_month"], "Latest month"),
+        ],
     )
     balance_fig = line_figure(
         balance_trend_rows,
         [("application_determination_balance", "Application-Determination Balance")],
-        f"{selected['state_name']} Application-Determination Balance",
+        f"{selected['state_name']} Application-Determination Balance, {month_label(BASELINE_MONTH)}-{latest_month}",
         "Applications minus determinations; not backlog, timeliness, approval rate, or performance.",
+        "Applications minus determinations",
+        scope_label=selected["state_name"],
+        reference_lines=[(POST_PEAK_CONTEXT_MONTH, "April 2023 reference point")],
     )
+    chip_component_summary = [
+        card("Latest Medicaid enrollment", format_value(latest_medicaid), month_label(latest_row["reporting_month"])),
+        card("Latest CHIP enrollment", format_value(latest_chip), month_label(latest_row["reporting_month"])),
+        card("Medicaid share of combined enrollment", format_value(ratio(latest_medicaid, latest_total, 100), "percent"), "Latest state month"),
+        card("CHIP share of combined enrollment", format_value(ratio(latest_chip, latest_total, 100), "percent"), "Latest state month"),
+        card("Medicaid change since Jan. 2019", format_value(medicaid_change, "signed_integer"), format_value(percent_change(latest_medicaid, baseline_medicaid), "percent")),
+        card("CHIP change since Jan. 2019", format_value(chip_change, "signed_integer"), format_value(percent_change(latest_chip, baseline_chip), "percent")),
+    ]
     chip_summary = [
         card("Selected state", f"{selected['state_name']} ({selected_state})"),
-        card("Latest Medicaid enrollment", format_value(selected["latest_medicaid_enrollment"])),
-        card("Latest CHIP enrollment", format_value(selected["latest_chip_enrollment"])),
-        card("Medicaid per 1,000 residents", format_value(selected["medicaid_enrollment_per_1000_residents"], "decimal")),
-        card("CHIP per 1,000 residents", format_value(selected["chip_enrollment_per_1000_residents"], "decimal")),
+        *state_summary_cards(selected_state),
+    ]
+    chip_interpretation = [
+        html.H2(f"What Changed In {selected['state_name']}?"),
+        html.Ul(
+            [
+                html.Li(
+                    f"Combined Medicaid/CHIP enrollment peaked in {month_label(peak_row['reporting_month'])} at {format_value(story['peak_value'])} and was {format_value(story['latest_value'])} in the latest month."
+                ),
+                html.Li(
+                    f"Medicaid enrollment was {format_value(latest_medicaid)} and CHIP enrollment was {format_value(latest_chip)} in {month_label(latest_row['reporting_month'])}."
+                ),
+                html.Li(
+                    f"Most combined enrollment movement appears concentrated in {focus}, based on descriptive component changes since January 2019."
+                ),
+                html.Li("This is descriptive monitoring, not a causal policy estimate."),
+            ]
+        ),
     ]
     ops_summary = [
         card("Applications submitted", format_value(selected["latest_applications_submitted"])),
@@ -1599,7 +1828,7 @@ def update_state_sections(selected_state: str):
         card("Eligibility determinations", format_value(balance.get("total_medicaid_chip_determinations")), "Latest month"),
         card("Determinations per application", format_value(balance.get("determinations_per_application"), "ratio"), "Descriptive relationship"),
     ]
-    return chip_split, chip_fig, chip_summary, ops_fig, ops_summary, balance_fig, balance_summary
+    return chip_split, chip_fig, chip_component_summary, chip_summary, chip_interpretation, ops_fig, ops_summary, balance_fig, balance_summary
 
 
 @app.callback(

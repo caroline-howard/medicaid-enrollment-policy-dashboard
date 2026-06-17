@@ -427,6 +427,26 @@ h3 {
   font-size: 1.25rem;
 }
 
+.chart-card-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.chart-card-header h2 {
+  margin-bottom: 4px;
+}
+
+.chart-card-header p {
+  max-width: 720px;
+  margin-bottom: 0;
+  color: #53636e;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
 .visually-hidden {
   display: none;
 }
@@ -471,8 +491,13 @@ h3 {
   .map-layout,
   .map-chart-layout,
   .month-control,
+  .chart-card-header,
   .controls {
     grid-template-columns: 1fr;
+  }
+
+  .chart-card-header {
+    display: grid;
   }
 
   .map-panel {

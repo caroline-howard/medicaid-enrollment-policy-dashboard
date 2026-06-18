@@ -575,9 +575,14 @@ def metric_details_panel(key: str = "total") -> html.Div:
 
 def section_header(title: str, question: str, explanation: str) -> html.Div:
     children = [
-        html.P("Monitoring question", className="eyebrow"),
         html.H2(title),
-        html.H3(question),
+        html.Div(
+            className="monitoring-question",
+            children=[
+                html.Span("Main question"),
+                html.H3(question),
+            ],
+        ),
     ]
     if explanation:
         children.append(html.P(explanation))
@@ -2218,7 +2223,6 @@ app.layout = html.Div(
         html.Header(
             className="app-header",
             children=[
-                html.P("CMS public data monitoring tool", className="eyebrow"),
                 html.H1("Medicaid Enrollment & Eligibility Operations Analytics"),
                 html.P(
                     "A public CMS data monitoring tool for Medicaid/CHIP enrollment, eligibility operations, "
@@ -2232,10 +2236,10 @@ app.layout = html.Div(
                             className="hero-metadata-strip",
                             children=[
                                 html.Span([html.Strong("Source:"), " CMS public data"]),
-                                html.Span([html.Strong("Coverage:"), " Jan. 2019-Feb. 2026"]),
-                                html.Span([html.Strong("Geography:"), " 50 states + DC"]),
-                                html.Span([html.Strong("Unit:"), " State-month aggregate panel"]),
-                                html.Span([html.Strong("Purpose:"), " Descriptive monitoring"]),
+                                html.Span("Jan. 2019-Feb. 2026"),
+                                html.Span("50 states + DC"),
+                                html.Span("State-month aggregate panel"),
+                                html.Span("Descriptive monitoring"),
                             ],
                         ),
                     ],

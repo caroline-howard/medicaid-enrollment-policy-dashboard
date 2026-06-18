@@ -569,6 +569,16 @@ def metric_details_panel(key: str = "total") -> html.Div:
     )
 
 
+def explore_card(title: str, text: str) -> html.Div:
+    return html.Div(
+        className="explore-card",
+        children=[
+            html.H3(title),
+            html.P(text),
+        ],
+    )
+
+
 def section_header(title: str, question: str, explanation: str) -> html.Div:
     children = [
         html.P("Monitoring question", className="eyebrow"),
@@ -913,7 +923,43 @@ def build_overview_tab() -> html.Div:
             ),
             html.Div(id="national-kpi-details", children=metric_details_panel("baseline")),
             html.Div(
-                className="two-column trend-grid",
+                className="two-column",
+                children=[
+                    html.Div(
+                        className="policy-note executive-card",
+                        children=[
+                            html.H2("What changed?"),
+                            html.P(
+                                (
+                                    f"National Medicaid/CHIP enrollment was {format_value(story['baseline_value'])} in "
+                                    f"{month_label(story['baseline']['reporting_month'])}, peaked at {format_value(story['peak_value'])} "
+                                    f"in {month_label(story['peak']['reporting_month'])}, and was {format_value(story['latest_value'])} "
+                                    f"in {latest_month}. This represents {format_value(story['change_from_baseline'], 'signed_integer')} "
+                                    f"from baseline and {format_value(story['change_from_peak'], 'signed_integer')} from the observed peak. "
+                                    "These changes are descriptive monitoring findings, not causal policy estimates."
+                                )
+                            ),
+                            html.P(
+                                "Use the State Map Explorer and Medicaid vs CHIP Drivers tabs to see whether changes vary by state and program component."
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        className="policy-note executive-card",
+                        children=[
+                            html.H2("Why this matters"),
+                            html.P(
+                                "Medicaid is a major public coverage program administered by states within federal rules, so enrollment patterns should be interpreted with state policy, eligibility, and administrative context. CHIP is included because the CMS source reports Medicaid and CHIP together and separately, and CHIP is especially important for children's coverage."
+                            ),
+                            html.P(
+                                "This dashboard monitors enrollment and eligibility operations; it does not measure access to care, utilization, costs, claims, diagnoses, or outcomes. KFF and MACPAC are policy context sources only; CMS/Data.Medicaid.gov remains the source for dashboard metrics."
+                            ),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className="trend-grid single-chart-grid",
                 children=[
                     html.Div(
                         className="panel chart-panel",
@@ -939,55 +985,26 @@ def build_overview_tab() -> html.Div:
                             ),
                         ],
                     ),
-                    html.Div(
-                        className="panel chart-panel",
-                        children=[
-                            html.Div(
-                                className="chart-card-header",
-                                children=[
-                                    html.Div(
-                                        children=[
-                                            html.H2("Applications And Determinations Trend Explorer"),
-                                            html.P("What to look for: compare latest activity with high-activity months; these are descriptive operations indicators."),
-                                        ]
-                                    ),
-                                ],
-                            ),
-                            dcc.Graph(
-                                figure=national_ops_figure(),
-                                config={"displayModeBar": False},
-                            ),
-                        ],
-                    ),
                 ],
             ),
             html.Div(
-                className="two-column",
+                className="explore-grid",
                 children=[
-                    html.Div(
-                        className="policy-note",
-                        children=[
-                            html.H2("Monitoring Questions"),
-                            html.Ul(
-                                [
-                                    html.Li("Is combined Medicaid/CHIP enrollment rising, falling, or stabilizing nationally?"),
-                                    html.Li("Are applications and determinations moving together or diverging descriptively?"),
-                                    html.Li("Which periods require more source context before interpretation?"),
-                                ]
-                            ),
-                        ],
+                    explore_card(
+                        "State Map Explorer",
+                        "Compare raw enrollment counts with population-adjusted enrollment and state-level changes.",
                     ),
-                    html.Div(
-                        className="policy-note",
-                        children=[
-                            html.H2("Why Medicaid And CHIP Are Shown Together"),
-                            html.P(
-                                "The official CMS source reports Medicaid and CHIP both together and separately. "
-                                "Combined Medicaid/CHIP enrollment supports overall public coverage monitoring, "
-                                "while separate Medicaid and CHIP views help show whether changes are concentrated "
-                                "in Medicaid, CHIP, or both."
-                            ),
-                        ],
+                    explore_card(
+                        "Medicaid vs CHIP Drivers",
+                        "See whether enrollment changes are concentrated in Medicaid, CHIP, or both.",
+                    ),
+                    explore_card(
+                        "Eligibility Operations",
+                        "Review applications, eligibility determinations, and application-determination balance as descriptive operations indicators.",
+                    ),
+                    explore_card(
+                        "Data Quality Review",
+                        "Check which fields are complete enough for headline reporting and which require caution.",
                     ),
                 ],
             ),

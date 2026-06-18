@@ -72,24 +72,57 @@ h3 {
   line-height: 1.55;
 }
 
-.hero-badges {
+.hero-metadata-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 20px;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22px;
 }
 
-.hero-badges span {
-  padding: 7px 10px;
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  border-radius: 999px;
-  color: #edf7f7;
-  font-size: 0.8rem;
+.hero-metadata-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px 18px;
+  align-items: center;
+  max-width: 980px;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+}
+
+.hero-metadata-strip span {
+  color: #d7e5e9;
+  font-size: 0.82rem;
+  line-height: 1.35;
+  white-space: nowrap;
+}
+
+.hero-metadata-strip strong {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.hero-status {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  padding: 10px 12px;
+  background: #fff8e5;
+  border: 1px solid #ead48c;
+  border-radius: 8px;
+  color: #694705;
+  font-size: 0.84rem;
+  line-height: 1.35;
   font-weight: 700;
 }
 
-.hero-badges .amber-chip,
+.hero-status strong {
+  color: #3f2b05;
+}
+
 .amber-chip {
   background: #fef3c7;
   border-color: #f3d174;
@@ -590,6 +623,19 @@ h3 {
 @media (max-width: 900px) {
   .app-header {
     padding: 28px 22px 20px;
+  }
+
+  .hero-metadata-row {
+    align-items: stretch;
+  }
+
+  .hero-metadata-strip,
+  .hero-status {
+    width: 100%;
+  }
+
+  .hero-metadata-strip span {
+    white-space: normal;
   }
 
   .tab-page {

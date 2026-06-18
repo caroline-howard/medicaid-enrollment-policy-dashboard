@@ -1826,14 +1826,22 @@ app.layout = html.Div(
                     className="header-copy",
                 ),
                 html.Div(
-                    className="hero-badges",
+                    className="hero-metadata-row",
                     children=[
-                        html.Span("CMS public data"),
-                        html.Span("Jan. 2019-Feb. 2026"),
-                        html.Span("50 states + DC"),
-                        html.Span("State-month aggregate panel"),
-                        html.Span("Descriptive monitoring"),
-                        html.Span("Latest month preliminary", className="amber-chip"),
+                        html.Div(
+                            className="hero-metadata-strip",
+                            children=[
+                                html.Span([html.Strong("Source:"), " CMS public data"]),
+                                html.Span([html.Strong("Coverage:"), " Jan. 2019-Feb. 2026"]),
+                                html.Span([html.Strong("Geography:"), " 50 states + DC"]),
+                                html.Span([html.Strong("Unit:"), " State-month aggregate panel"]),
+                                html.Span([html.Strong("Purpose:"), " Descriptive monitoring"]),
+                            ],
+                        ),
+                        html.Div(
+                            className="hero-status",
+                            children=[html.Strong("Status:"), " Latest month preliminary"],
+                        ),
                     ],
                 ),
             ],

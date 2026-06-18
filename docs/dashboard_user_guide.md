@@ -12,8 +12,8 @@ Clicking a KPI card opens a metric detail panel. On initial load, the KPI cards 
 
 The National Snapshot main visualization pairs two views:
 
-- Selected State vs National Medicaid/CHIP Enrollment Trend: an indexed line chart where both the selected state and national series start at 100 in January 2019. Values above 100 mean enrollment is higher than the January 2019 baseline, and values below 100 mean enrollment is lower than the baseline.
-- State Medicaid/CHIP Enrollment Change Since Jan. 2019: a supporting U.S. choropleth map showing state-level relative change since January 2019.
+- Indexed Enrollment Trend: Selected State vs National: an indexed line chart where both the selected state and national series start at 100 in January 2019. Values above 100 mean enrollment is higher than the January 2019 baseline, and values below 100 mean enrollment is lower than the baseline.
+- State Medicaid/CHIP Enrollment Change Since January 2019: a supporting U.S. choropleth map showing state-level percent change since January 2019, not current enrollment totals.
 
 These visuals combine time-trend context with state comparison context. Use the line chart to see timing and trajectory, and use the map to compare the selected state with other states. The selected-state dropdown and map click interaction use the same selected state.
 

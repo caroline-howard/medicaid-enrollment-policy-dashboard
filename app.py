@@ -1080,9 +1080,9 @@ def build_overview_tab() -> html.Div:
             html.Div(
                 className="shared-visual-banner",
                 children=[
-                    html.H2("How to read these visuals"),
+                    html.H2("How these visuals work together"),
                     html.P(
-                        "The line chart compares the selected state’s Medicaid/CHIP enrollment trend with the national trend using an indexed scale where January 2019 = 100. The map shows each state’s percent change in Medicaid/CHIP enrollment since January 2019. Together, these visuals show when enrollment changed over time and how large that change was relative to other states."
+                        "The line chart shows the timing and pattern of change for the selected state compared with the national trend. The map shows how much enrollment changed overall in each state since the start of the dataset. Together, they distinguish trend shape over time from overall magnitude of change."
                     ),
                 ],
             ),
@@ -1186,13 +1186,6 @@ def build_overview_tab() -> html.Div:
                             ),
                         ],
                     ),
-                ],
-            ),
-            html.Div(
-                className="shared-visual-note",
-                children=[
-                    html.Strong("How these visuals work together: "),
-                    "The line chart shows the timing and pattern of change for the selected state compared with the national trend. The map shows how much enrollment changed overall in each state since the start of the dataset. Together, they distinguish trend shape over time from overall magnitude of change.",
                 ],
             ),
         ],

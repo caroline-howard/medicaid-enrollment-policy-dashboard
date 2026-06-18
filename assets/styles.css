@@ -687,6 +687,15 @@ h3 {
   line-height: 1.45;
 }
 
+.chart-card-header .compact-control {
+  min-width: 260px;
+  display: grid;
+  gap: 6px;
+  color: #394955;
+  font-size: 0.88rem;
+  font-weight: 800;
+}
+
 .visually-hidden {
   display: none;
 }

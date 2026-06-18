@@ -751,32 +751,138 @@ def add_chart_point(fig: go.Figure, row: dict[str, str], field: str, label: str,
     )
 
 
-def national_enrollment_figure() -> go.Figure:
-    story = national_enrollment_story()
-    fig = line_figure(
-        national_enrollment,
-        [("total_medicaid_and_chip_enrollment", "Total Medicaid/CHIP enrollment")],
-        "National Medicaid/CHIP Enrollment Over Time",
-        f"Compare the January 2019 baseline, {month_label(story['peak']['reporting_month'])} peak, and latest reporting month. The shaded region marks the post-peak monitoring period.",
-        "Enrollment count",
-        scope_label="National",
-        reference_lines=[],
-        height=390,
-        show_range_slider=False,
-        show_post_peak_button=False,
+def indexed_state_national_rows(selected_state: str) -> list[dict[str, str | float | None]]:
+    state_rows_for_chart = state_trend_rows(selected_state)
+    if not state_rows_for_chart:
+        return []
+    national_by_month = {row["reporting_month"]: row for row in national_enrollment}
+    state_by_month = {row["reporting_month"]: row for row in state_rows_for_chart}
+    baseline_national_row = national_by_month.get(BASELINE_MONTH) or national_enrollment[0]
+    baseline_state_row = state_by_month.get(BASELINE_MONTH) or state_rows_for_chart[0]
+    baseline_national = to_float(baseline_national_row.get("total_medicaid_and_chip_enrollment"))
+    baseline_state = to_float(baseline_state_row.get("total_medicaid_and_chip_enrollment"))
+    output = []
+    for reporting_month in sorted(set(national_by_month) & set(state_by_month)):
+        national_row = national_by_month[reporting_month]
+        state_row = state_by_month[reporting_month]
+        national_raw = to_float(national_row.get("total_medicaid_and_chip_enrollment"))
+        state_raw = to_float(state_row.get("total_medicaid_and_chip_enrollment"))
+        output.append(
+            {
+                "reporting_month": reporting_month,
+                "national_index": ratio(national_raw, baseline_national, 100),
+                "state_index": ratio(state_raw, baseline_state, 100),
+                "national_raw": national_raw,
+                "state_raw": state_raw,
+                "state_status": "Preliminary" if state_row.get("preliminary_or_updated") == "P" else "Final/updated",
+            }
+        )
+    return output
+
+
+def add_index_annotation(fig: go.Figure, row: dict[str, str | float | None], field: str, label: str, color: str, textposition: str = "top center") -> None:
+    value = to_float(row.get(field))
+    if value is None:
+        return
+    fig.add_trace(
+        go.Scatter(
+            x=[row["reporting_month"]],
+            y=[value],
+            mode="markers+text",
+            name=label,
+            text=[label],
+            textposition=textposition,
+            marker={"size": 9, "color": color, "line": {"color": "white", "width": 1.5}},
+            hovertemplate=f"{label}<br>Reporting month: %{{x|%b %Y}}<br>Index value: %{{y:,.1f}}<extra></extra>",
+            showlegend=False,
+        )
+    )
+
+
+def national_enrollment_figure(selected_state: str = "CA") -> go.Figure:
+    if selected_state not in state_lookup:
+        selected_state = "CA"
+    selected = state_lookup[selected_state]
+    rows = indexed_state_national_rows(selected_state)
+    if not rows:
+        return go.Figure()
+    baseline = rows[0]
+    latest = rows[-1]
+    national_peak = max(rows, key=lambda row: to_float(row.get("national_index")) or 0)
+    state_peak = max(rows, key=lambda row: to_float(row.get("state_index")) or 0)
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=[row["reporting_month"] for row in rows],
+            y=[row["state_index"] for row in rows],
+            mode="lines",
+            name=f"{selected['state_name']} Medicaid/CHIP enrollment index",
+            line={"width": 3, "color": "#2f7d78"},
+            customdata=[[selected["state_name"], row["state_raw"], row["state_status"]] for row in rows],
+            hovertemplate=(
+                "Geography: %{customdata[0]}<br>"
+                "Reporting month: %{x|%b %Y}<br>"
+                "Indexed enrollment: %{y:,.1f}<br>"
+                "Raw enrollment: %{customdata[1]:,.0f}<br>"
+                "Reporting status: %{customdata[2]}<extra></extra>"
+            ),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[row["reporting_month"] for row in rows],
+            y=[row["national_index"] for row in rows],
+            mode="lines",
+            name="National Medicaid/CHIP enrollment index",
+            line={"width": 3, "color": "#12324a"},
+            customdata=[[row["national_raw"]] for row in rows],
+            hovertemplate=(
+                "Geography: National<br>"
+                "Reporting month: %{x|%b %Y}<br>"
+                "Indexed enrollment: %{y:,.1f}<br>"
+                "Raw enrollment: %{customdata[0]:,.0f}<extra></extra>"
+            ),
+        )
     )
     fig.add_vrect(
-        x0=POST_PEAK_CONTEXT_MONTH,
-        x1=LATEST_MONTH_VALUE,
+        x0=national_peak["reporting_month"],
+        x1=latest["reporting_month"],
         fillcolor="#f8e8b0",
-        opacity=0.18,
+        opacity=0.16,
         line_width=0,
-        annotation_text="Post-peak monitoring period",
+        annotation_text="After observed peak",
         annotation_position="top left",
     )
-    add_chart_point(fig, story["baseline"], "total_medicaid_and_chip_enrollment", "Jan. 2019 baseline", "#6b8793")
-    add_chart_point(fig, story["peak"], "total_medicaid_and_chip_enrollment", "National peak", "#b7791f")
-    add_chart_point(fig, story["latest"], "total_medicaid_and_chip_enrollment", "Latest month", "#12324a")
+    add_index_annotation(fig, baseline, "national_index", "Baseline", "#6b8793", "bottom center")
+    add_index_annotation(fig, national_peak, "national_index", "National peak", "#b7791f")
+    add_index_annotation(fig, state_peak, "state_index", "State peak", "#2f7d78", "bottom center")
+    add_index_annotation(fig, latest, "national_index", "Latest", "#12324a")
+    fig.update_layout(
+        title={
+            "text": (
+                "State vs National Medicaid/CHIP Enrollment Trend"
+                "<br><sup>Indexed to January 2019 = 100 so the selected state and national trend can be compared across the full reporting period.</sup>"
+            )
+        },
+        margin={"l": 58, "r": 28, "t": 86, "b": 48},
+        height=430,
+        hovermode="x unified",
+        legend={"orientation": "h", "y": -0.2},
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font={"family": "Inter, Arial, sans-serif", "color": "#253746"},
+        xaxis={
+            "title": "Reporting month",
+            "showgrid": True,
+            "gridcolor": "#e8eef0",
+            "range": [baseline["reporting_month"], latest["reporting_month"]],
+        },
+        yaxis={
+            "title": "Index, Jan. 2019 = 100",
+            "showgrid": True,
+            "gridcolor": "#eef2f3",
+        },
+    )
     return fig
 
 
@@ -911,43 +1017,7 @@ def build_overview_tab() -> html.Div:
                     ),
                 ],
             ),
-            html.Div(id="national-kpi-details", children=metric_details_panel("baseline")),
-            html.Div(
-                className="two-column",
-                children=[
-                    html.Div(
-                        className="policy-note executive-card",
-                        children=[
-                            html.H2("What changed?"),
-                            html.P(
-                                (
-                                    f"National Medicaid/CHIP enrollment was {format_value(story['baseline_value'])} in "
-                                    f"{month_label(story['baseline']['reporting_month'])}, peaked at {format_value(story['peak_value'])} "
-                                    f"in {month_label(story['peak']['reporting_month'])}, and was {format_value(story['latest_value'])} "
-                                    f"in {latest_month}. This represents {format_value(story['change_from_baseline'], 'signed_integer')} "
-                                    f"from baseline and {format_value(story['change_from_peak'], 'signed_integer')} from the observed peak. "
-                                    "These changes are descriptive monitoring findings, not causal policy estimates."
-                                )
-                            ),
-                            html.P(
-                                "Use the State Map Explorer and Medicaid vs CHIP Drivers tabs to see whether changes vary by state and program component."
-                            ),
-                        ],
-                    ),
-                    html.Div(
-                        className="policy-note executive-card",
-                        children=[
-                            html.H2("Why this matters"),
-                            html.P(
-                                "Medicaid is a major public coverage program administered by states within federal rules, so enrollment patterns should be interpreted with state policy, eligibility, and administrative context. CHIP is included because the CMS source reports Medicaid and CHIP together and separately, and CHIP is especially important for children's coverage."
-                            ),
-                            html.P(
-                                "This dashboard monitors enrollment and eligibility operations; it does not measure access to care, utilization, costs, claims, diagnoses, or outcomes. KFF and MACPAC are policy context sources only; CMS/Data.Medicaid.gov remains the source for dashboard metrics."
-                            ),
-                        ],
-                    ),
-                ],
-            ),
+            html.Div(id="national-kpi-details"),
             html.Div(
                 className="trend-grid single-chart-grid",
                 children=[
@@ -959,18 +1029,29 @@ def build_overview_tab() -> html.Div:
                                 children=[
                                     html.Div(
                                         children=[
-                                            html.H2("National Medicaid/CHIP Enrollment Over Time"),
-                                            html.P("What to look for: baseline to peak to latest enrollment, with the post-peak monitoring period shaded directly on the chart."),
+                                            html.H2("State vs National Medicaid/CHIP Enrollment Trend"),
+                                            html.P(
+                                                "Indexed to January 2019 = 100 so the selected state and national trend can be compared across the full reporting period."
+                                            ),
                                         ]
                                     ),
-                                    html.Span(
-                                        "The shaded region is descriptive context, not a causal policy label.",
-                                        className="help-pill",
+                                    html.Label(
+                                        [
+                                            html.Span("Selected state"),
+                                            dcc.Dropdown(
+                                                id="overview-state-selector",
+                                                options=sorted_states(state_rows),
+                                                value="CA",
+                                                clearable=False,
+                                            ),
+                                        ],
+                                        className="control-label compact-control",
                                     ),
                                 ],
                             ),
                             dcc.Graph(
-                                figure=national_enrollment_figure(),
+                                id="national-index-trend",
+                                figure=national_enrollment_figure("CA"),
                                 config={"displayModeBar": False},
                             ),
                         ],
@@ -983,20 +1064,11 @@ def build_overview_tab() -> html.Div:
                     html.H2("How to read this graphic"),
                     html.Ul(
                         [
-                            html.Li("This chart shows national combined Medicaid/CHIP enrollment over time."),
-                            html.Li("The shaded region marks the post-peak monitoring period after the observed national enrollment peak."),
-                            html.Li("Use the 1Y, 3Y, and All controls to focus on recent or full-period trends."),
-                            html.Li("This is a descriptive monitoring chart, not a causal policy estimate."),
+                            html.Li("Both lines start at 100 in January 2019."),
+                            html.Li("Values above 100 mean enrollment is higher than the January 2019 baseline."),
+                            html.Li("Values below 100 mean enrollment is lower than the January 2019 baseline."),
+                            html.Li("This makes the selected state and national trends comparable even though their raw enrollment counts are very different."),
                         ]
-                    ),
-                    html.H2("What this chart shows"),
-                    html.P(
-                        (
-                            f"National Medicaid/CHIP enrollment rose from {format_value(story['baseline_value'])} "
-                            f"in {month_label(story['baseline']['reporting_month'])} to {format_value(story['peak_value'])} "
-                            f"in {month_label(story['peak']['reporting_month'])}, then declined to {format_value(story['latest_value'])} "
-                            f"by {latest_month}. Use the Medicaid vs CHIP Drivers tab to see whether changes are concentrated in Medicaid, CHIP, or both."
-                        )
                     ),
                 ],
             ),
@@ -2077,9 +2149,19 @@ app.layout = html.Div(
     Input("kpi-operations", "n_clicks"),
 )
 def update_national_kpi_details(*_clicks):
-    triggered = ctx.triggered_id or "kpi-baseline"
+    if not ctx.triggered_id:
+        return []
+    triggered = ctx.triggered_id
     key = str(triggered).replace("kpi-", "")
     return metric_details_panel(key)
+
+
+@app.callback(
+    Output("national-index-trend", "figure"),
+    Input("overview-state-selector", "value"),
+)
+def update_national_index_trend(selected_state: str):
+    return national_enrollment_figure(selected_state)
 
 
 @app.callback(

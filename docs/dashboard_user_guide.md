@@ -4,13 +4,13 @@
 
 The National Snapshot tab is designed as an executive summary page. It answers the main monitoring question:
 
-How has national combined Medicaid/CHIP enrollment changed from the January 2019 baseline to the observed peak and latest reporting month?
+How does the selected state’s Medicaid/CHIP enrollment trend compare with the national trend across the full reporting period?
 
-The page uses National Monitoring Summary KPI cards to show the January 2019 baseline, observed peak, latest reporting month, change since baseline, change from peak, and latest operations activity. The “What changed?” card summarizes the main enrollment movement using values from the cleaned CMS/Data.Medicaid.gov dataset.
+The page uses National Monitoring Summary KPI cards to show the January 2019 baseline, observed peak, latest reporting month, change since baseline, change from peak, and latest operations activity.
 
-The “Why this matters” card provides policy context. KFF and MACPAC are used only as policy context sources; CMS/Data.Medicaid.gov remains the source for dashboard metrics.
+Clicking a KPI card opens a metric detail panel. On initial load, the KPI cards flow directly into the main chart.
 
-The National Snapshot includes one main annotated combined Medicaid/CHIP enrollment trend chart. The chart includes 1Y, 3Y, and All controls, does not use a bottom range slider, shades the post-peak monitoring period directly on the chart, and annotates the January 2019 baseline, observed peak, and latest reporting month. Detailed applications, eligibility determinations, and application-determination balance trends are in the Eligibility Operations tab.
+The National Snapshot includes one main full-period indexed trend chart: State vs National Medicaid/CHIP Enrollment Trend. Both lines start at 100 in January 2019. Values above 100 mean enrollment is higher than the January 2019 baseline, and values below 100 mean enrollment is lower than the baseline. The selected-state dropdown is the chart’s only control; there are no time-range buttons or bottom range slider.
 
 ## Medicaid vs CHIP Drivers
 

@@ -453,48 +453,48 @@ KPI_DETAILS = {
     "baseline": {
         "title": "Baseline enrollment",
         "measures": "National total Medicaid/CHIP enrollment at the January 2019 starting point for this project period.",
-        "matters": "It anchors the monitoring period so later enrollment levels can be compared with a consistent reference point.",
-        "interpret": "Use this as the starting point for descriptive change over time, then compare it with peak and latest enrollment.",
+        "matters": "Medicaid and CHIP are major state-federal coverage programs, so the baseline establishes the national public coverage level before later pandemic-era and post-2023 eligibility operations patterns appear in the data.",
+        "interpret": "A baseline value gives the dashboard a fixed reference month. Later increases or decreases show how national enrollment moved relative to the start of the project period.",
         "caution": "This is an aggregate enrollment count. It does not show individual eligibility experiences, access to care, service use, health outcomes, claims, or costs.",
         "related": "National Snapshot, State Map Explorer, Medicaid vs CHIP Drivers",
     },
     "peak": {
         "title": "Peak enrollment",
         "measures": "The highest observed national total Medicaid/CHIP enrollment month in the cleaned dashboard dataset.",
-        "matters": "It helps identify the observed high point in the available data before comparing later enrollment levels.",
-        "interpret": "Use this as an observed reference point, not as a target or performance benchmark.",
+        "matters": "The observed high point helps viewers understand the scale of enrollment reached during the available reporting period and frames later declines or stabilization.",
+        "interpret": "If latest enrollment is below this point, the dashboard is showing a descriptive shift away from the observed high-water mark in the cleaned data.",
         "caution": "Highest observed enrollment is descriptive. It does not explain why enrollment changed or estimate any policy effect.",
         "related": "National Snapshot, State Map Explorer, Methods & Limits",
     },
     "latest": {
         "title": "Latest enrollment",
         "measures": "National total Medicaid/CHIP enrollment in the latest CMS reporting month available in the dashboard.",
-        "matters": "It gives the most current national public coverage enrollment view in the dataset.",
-        "interpret": "Compare this value with the January 2019 baseline and observed peak to understand the latest descriptive position.",
+        "matters": "This is the current national coverage snapshot in the public CMS reporting extract, useful for routine Medicaid/CHIP monitoring and reporting conversations.",
+        "interpret": "Read it as the latest position of national enrollment within the project period: whether current enrollment is closer to the baseline, the observed peak, or somewhere in between.",
         "caution": "Latest-month values may be preliminary and can be revised in later source updates.",
         "related": "National Snapshot, State Map Explorer, Data Quality Review",
     },
     "change-baseline": {
         "title": "Change since Jan. 2019",
         "measures": "The difference between latest national Medicaid/CHIP enrollment and the January 2019 baseline.",
-        "matters": "It summarizes how far the latest enrollment count is from the project starting point.",
-        "interpret": "The arrow and sign show direction of change only. They do not imply the change is good or bad.",
+        "matters": "This summarizes the net enrollment movement across the full reporting window, helping policy and operations audiences quickly see the size and direction of national change.",
+        "interpret": "An upward arrow means latest enrollment is above the January 2019 starting point; a downward arrow means it is below that starting point. The percent gives scale relative to the baseline.",
         "caution": "This is descriptive monitoring and does not estimate what caused the change.",
         "related": "National Snapshot, State Map Explorer, Medicaid vs CHIP Drivers",
     },
     "change-peak": {
         "title": "Change from peak",
         "measures": "The difference between latest national Medicaid/CHIP enrollment and the highest observed enrollment month in the cleaned data.",
-        "matters": "It shows how far the latest value is from the observed national high point.",
-        "interpret": "A negative value means latest enrollment is below the observed peak. This is descriptive, not a performance judgment.",
+        "matters": "This helps interpret the post-peak enrollment position, especially for readers tracking the return to regular eligibility operations after the continuous enrollment period ended.",
+        "interpret": "A downward arrow means latest enrollment is below the observed peak; an upward arrow would mean it is above the observed peak. The value describes distance from that high point.",
         "caution": "This describes the change from the observed enrollment peak in the cleaned data. It does not estimate the cause of the change.",
         "related": "National Snapshot, Data Quality Review, Methods & Limits",
     },
     "operations": {
         "title": "Latest operations activity",
         "measures": "Applications submitted and Medicaid/CHIP eligibility determinations in the latest reporting month.",
-        "matters": "These values provide descriptive context on activity entering and moving through eligibility operations.",
-        "interpret": "Compare applications and determinations with population-adjusted operations views and state trends for more context.",
+        "matters": "Applications and determinations give policy and operations readers a view of eligibility-system activity, separate from enrollment counts.",
+        "interpret": "Read the two values together as same-month activity indicators: applications reflect people entering the financial-assistance process, while determinations reflect application-stage eligibility decisions reported that month.",
         "caution": "Applications and determinations are descriptive operations indicators. They are not backlog, timeliness, approval-rate, or performance measures.",
         "related": "Eligibility Operations, Monitoring Flags, Data Quality Review",
     },
@@ -558,7 +558,6 @@ def metric_details_panel(key: str = "total") -> html.Div:
                     html.Div([html.Span("What this measures"), html.P(detail["measures"])]),
                     html.Div([html.Span("Why it matters"), html.P(detail["matters"])]),
                     html.Div([html.Span("How to interpret it"), html.P(detail["interpret"])]),
-                    html.Div([html.Span("Use caution"), html.P(detail["caution"])]),
                     html.Div([html.Span("Related dashboard views"), html.P(detail["related"])]),
                 ],
             ),
@@ -571,14 +570,16 @@ def metric_details_panel(key: str = "total") -> html.Div:
 
 
 def section_header(title: str, question: str, explanation: str) -> html.Div:
+    children = [
+        html.P("Monitoring question", className="eyebrow"),
+        html.H2(title),
+        html.H3(question),
+    ]
+    if explanation:
+        children.append(html.P(explanation))
     return html.Div(
         className="section-header",
-        children=[
-            html.P("Monitoring question", className="eyebrow"),
-            html.H2(title),
-            html.H3(question),
-            html.P(explanation),
-        ],
+        children=children,
     )
 
 
@@ -832,14 +833,17 @@ def build_overview_tab() -> html.Div:
             section_header(
                 "National Snapshot",
                 "How have national Medicaid/CHIP enrollment, applications, and eligibility determinations changed over time?",
-                "Review baseline, peak, latest reporting month, descriptive enrollment changes, and current eligibility operations activity.",
+                "",
             ),
             html.Div(
                 className="section-subhead",
                 children=[
-                    html.H2("National Monitoring Summary"),
-                    html.P(
-                        "Key values showing baseline, peak, latest reporting month, and descriptive changes in Medicaid/CHIP enrollment and eligibility operations. Click a card to learn what the metric means and how to interpret it."
+                    html.Div(
+                        className="section-title-row",
+                        children=[
+                            html.H2("National Monitoring Summary"),
+                            html.Span("Click a card to explore.", className="instruction-pill"),
+                        ],
                     ),
                 ],
             ),
@@ -891,7 +895,7 @@ def build_overview_tab() -> html.Div:
                         "Below peak" if peak_direction == "down" else "Above peak" if peak_direction == "up" else "At peak",
                         f"delta-{peak_direction}",
                         percent=format_value(story["percent_change_from_peak"], "percent"),
-                        helper="Post-peak descriptive shift; not causal.",
+                        helper="Change from the observed peak.",
                     ),
                     kpi_button(
                         "operations",

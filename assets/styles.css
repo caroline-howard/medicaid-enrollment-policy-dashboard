@@ -635,6 +635,28 @@ h3 {
   font-size: 1.25rem;
 }
 
+.section-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.section-title-row h2 {
+  margin-bottom: 0;
+}
+
+.instruction-pill {
+  padding: 6px 10px;
+  background: #edf6f3;
+  border: 1px solid #bcd7cf;
+  border-radius: 999px;
+  color: #18534e;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .chart-card-header {
   display: flex;
   justify-content: space-between;

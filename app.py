@@ -73,7 +73,7 @@ if "concurrent.futures" not in sys.modules:
     sys.modules["concurrent.futures"] = futures_module
 
 sys.meta_path.insert(0, _ipython_blocker)
-from dash import Dash, Input, Output, dcc, html, ctx
+from dash import Dash, Input, Output, dcc, html, ctx, no_update
 sys.meta_path.remove(_ipython_blocker)
 
 
@@ -170,6 +170,8 @@ state_monitoring_rows = read_rows(DASHBOARD_DIR / "state_monitoring_summary.csv"
 national_monitoring_rows = read_rows(DASHBOARD_DIR / "national_monitoring_summary.csv")
 
 state_lookup = {row["state_abbreviation"]: row for row in state_rows}
+DEFAULT_OVERVIEW_STATE = "FL" if "FL" in state_lookup else sorted_states(state_rows)[0]["value"]
+state_map_lookup = {row["state_abbreviation"]: row for row in state_map_rows}
 latest_balance_lookup = {row["state_abbreviation"]: row for row in latest_balance_rows}
 peak_lookup = {row["state_abbreviation"]: row for row in peak_change_rows}
 state_monitoring_lookup = {
@@ -801,7 +803,7 @@ def add_index_annotation(fig: go.Figure, row: dict[str, str | float | None], fie
 
 def national_enrollment_figure(selected_state: str = "CA") -> go.Figure:
     if selected_state not in state_lookup:
-        selected_state = "CA"
+        selected_state = DEFAULT_OVERVIEW_STATE
     selected = state_lookup[selected_state]
     rows = indexed_state_national_rows(selected_state)
     if not rows:
@@ -860,8 +862,8 @@ def national_enrollment_figure(selected_state: str = "CA") -> go.Figure:
     fig.update_layout(
         title={
             "text": (
-                "State vs National Medicaid/CHIP Enrollment Trend"
-                "<br><sup>Indexed to January 2019 = 100 so the selected state and national trend can be compared across the full reporting period.</sup>"
+                "Selected State vs National Medicaid/CHIP Enrollment Trend"
+                "<br><sup>Indexed to Jan. 2019 = 100 so the selected state and national trends can be compared on the same scale.</sup>"
             )
         },
         margin={"l": 58, "r": 28, "t": 86, "b": 48},
@@ -882,6 +884,72 @@ def national_enrollment_figure(selected_state: str = "CA") -> go.Figure:
             "showgrid": True,
             "gridcolor": "#eef2f3",
         },
+    )
+    return fig
+
+
+def overview_change_map(selected_state: str = DEFAULT_OVERVIEW_STATE) -> go.Figure:
+    if selected_state not in state_map_lookup:
+        selected_state = DEFAULT_OVERVIEW_STATE
+    rows = sorted(state_map_rows, key=lambda row: row["state_name"])
+    values = [to_float(row.get("map_percent_change_since_2019")) for row in rows]
+    fig = go.Figure(
+        go.Choropleth(
+            locations=[row["state_abbreviation"] for row in rows],
+            z=values,
+            locationmode="USA-states",
+            colorscale="RdBu",
+            reversescale=True,
+            zmid=0,
+            colorbar={"title": "% change"},
+            customdata=[
+                [
+                    row["state_name"],
+                    month_label(row["latest_reporting_month"]),
+                    to_float(row.get("map_percent_change_since_2019")),
+                    (to_float(row.get("map_percent_change_since_2019")) or 0) + 100,
+                    to_float(row.get("latest_total_medicaid_chip_enrollment")),
+                    row.get("latest_month_preliminary_status", "Not available"),
+                    row["state_abbreviation"],
+                ]
+                for row in rows
+            ],
+            hovertemplate=(
+                "<b>%{customdata[0]}</b><br>"
+                "Latest reporting month: %{customdata[1]}<br>"
+                "Percent change since Jan. 2019: %{customdata[2]:.1f}%<br>"
+                "Latest enrollment index: %{customdata[3]:.1f}<br>"
+                "Latest total Medicaid/CHIP enrollment: %{customdata[4]:,.0f}<br>"
+                "Reporting status: %{customdata[5]}<extra></extra>"
+            ),
+            marker_line_color="white",
+            marker_line_width=0.8,
+            showscale=True,
+        )
+    )
+    selected = state_map_lookup.get(selected_state)
+    if selected:
+        fig.add_trace(
+            go.Choropleth(
+                locations=[selected_state],
+                z=[to_float(selected.get("map_percent_change_since_2019"))],
+                locationmode="USA-states",
+                colorscale="RdBu",
+                reversescale=True,
+                zmid=0,
+                marker_line_color="#111827",
+                marker_line_width=3,
+                showscale=False,
+                hoverinfo="skip",
+            )
+        )
+    fig.update_layout(
+        geo={"scope": "usa", "bgcolor": "rgba(0,0,0,0)", "lakecolor": "#f8fafc"},
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        height=410,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font={"family": "Inter, Arial, sans-serif", "color": "#253746"},
     )
     return fig
 
@@ -1019,7 +1087,7 @@ def build_overview_tab() -> html.Div:
             ),
             html.Div(id="national-kpi-details"),
             html.Div(
-                className="trend-grid single-chart-grid",
+                className="overview-visual-grid",
                 children=[
                     html.Div(
                         className="panel chart-panel",
@@ -1029,19 +1097,19 @@ def build_overview_tab() -> html.Div:
                                 children=[
                                     html.Div(
                                         children=[
-                                            html.H2("State vs National Medicaid/CHIP Enrollment Trend"),
+                                            html.H2("Selected State vs National Medicaid/CHIP Enrollment Trend"),
                                             html.P(
-                                                "Indexed to January 2019 = 100 so the selected state and national trend can be compared across the full reporting period."
+                                                "Indexed to Jan. 2019 = 100 so the selected state and national trends can be compared on the same scale."
                                             ),
                                         ]
                                     ),
                                     html.Label(
                                         [
-                                            html.Span("Selected state"),
+                                            html.Span("Select a state"),
                                             dcc.Dropdown(
                                                 id="overview-state-selector",
                                                 options=sorted_states(state_rows),
-                                                value="CA",
+                                                value=DEFAULT_OVERVIEW_STATE,
                                                 clearable=False,
                                             ),
                                         ],
@@ -1051,24 +1119,70 @@ def build_overview_tab() -> html.Div:
                             ),
                             dcc.Graph(
                                 id="national-index-trend",
-                                figure=national_enrollment_figure("CA"),
+                                figure=national_enrollment_figure(DEFAULT_OVERVIEW_STATE),
                                 config={"displayModeBar": False},
+                            ),
+                            html.Div(
+                                className="visual-explainer",
+                                children=[
+                                    html.H3("How to read this chart"),
+                                    html.Ul(
+                                        [
+                                            html.Li("Both lines start at 100 in January 2019."),
+                                            html.Li("A value of 110 means enrollment is 10% higher than the January 2019 baseline."),
+                                            html.Li("A value of 95 means enrollment is 5% lower than the January 2019 baseline."),
+                                            html.Li("This makes the selected state and national trends comparable even though their raw enrollment counts are very different."),
+                                        ]
+                                    ),
+                                    html.Div(
+                                        className="index-reference",
+                                        children=[
+                                            html.Span("100 = same as Jan. 2019"),
+                                            html.Span("Above 100 = above baseline"),
+                                            html.Span("Below 100 = below baseline"),
+                                        ],
+                                    ),
+                                    html.P(
+                                        "Dashboard metrics: CMS/Data.Medicaid.gov. Policy context sources are documented in Methods & Limits.",
+                                        className="source-note",
+                                    ),
+                                ],
                             ),
                         ],
                     ),
-                ],
-            ),
-            html.Div(
-                className="policy-note wide chart-interpretation",
-                children=[
-                    html.H2("How to read this graphic"),
-                    html.Ul(
-                        [
-                            html.Li("Both lines start at 100 in January 2019."),
-                            html.Li("Values above 100 mean enrollment is higher than the January 2019 baseline."),
-                            html.Li("Values below 100 mean enrollment is lower than the January 2019 baseline."),
-                            html.Li("This makes the selected state and national trends comparable even though their raw enrollment counts are very different."),
-                        ]
+                    html.Div(
+                        className="panel chart-panel",
+                        children=[
+                            html.Div(
+                                className="chart-card-header stacked",
+                                children=[
+                                    html.Div(
+                                        children=[
+                                            html.H2("State Medicaid/CHIP Enrollment Change Since Jan. 2019"),
+                                            html.P("Darker shading indicates a larger relative increase compared with the January 2019 baseline."),
+                                        ]
+                                    ),
+                                ],
+                            ),
+                            dcc.Graph(
+                                id="overview-change-map",
+                                figure=overview_change_map(DEFAULT_OVERVIEW_STATE),
+                                config={"displayModeBar": False},
+                            ),
+                            html.Div(
+                                className="visual-explainer",
+                                children=[
+                                    html.H3("How to read this map"),
+                                    html.Ul(
+                                        [
+                                            html.Li("This map shows how state Medicaid/CHIP enrollment changed relative to January 2019."),
+                                            html.Li("It provides national context for the selected state trend shown in the line chart."),
+                                            html.Li("Use the line chart to see the timing of change, and the map to compare the selected state with other states."),
+                                        ]
+                                    ),
+                                ],
+                            ),
+                        ],
                     ),
                 ],
             ),
@@ -2071,6 +2185,18 @@ def build_about_tab() -> html.Div:
                 ],
             ),
             html.Div(
+                className="policy-note wide",
+                children=[
+                    html.H2("Context Sources"),
+                    html.P(
+                        "External sources are used to help interpret the enrollment trend. McIntyre et al. (2025) provides context on Medicaid unwinding, state variation, churn, and the difference between terminations and net enrollment change. KFF provides broad Medicaid policy and state-variation context. MACPAC provides children's coverage and access context for Medicaid/CHIP."
+                    ),
+                    html.P(
+                        "Dashboard metrics remain based on CMS/Data.Medicaid.gov and official population denominator data."
+                    ),
+                ],
+            ),
+            html.Div(
                 className="two-column",
                 children=[
                     html.Div(className="panel", children=[html.H2("What The Dashboard Can Show"), html.Ul([html.Li("Medicaid/CHIP enrollment trends."), html.Li("Medicaid vs CHIP patterns."), html.Li("State variation."), html.Li("Applications and eligibility determinations."), html.Li("Population-adjusted context."), html.Li("Data quality caveats."), html.Li("Review flags for unusual changes.")])]),
@@ -2158,10 +2284,29 @@ def update_national_kpi_details(*_clicks):
 
 @app.callback(
     Output("national-index-trend", "figure"),
+    Output("overview-change-map", "figure"),
     Input("overview-state-selector", "value"),
 )
 def update_national_index_trend(selected_state: str):
-    return national_enrollment_figure(selected_state)
+    return national_enrollment_figure(selected_state), overview_change_map(selected_state)
+
+
+@app.callback(
+    Output("overview-state-selector", "value"),
+    Input("overview-change-map", "clickData"),
+    prevent_initial_call=True,
+)
+def update_overview_state_from_map(click_data: dict | None):
+    if not click_data or not click_data.get("points"):
+        return no_update
+    point = click_data["points"][0]
+    state = point.get("location")
+    if state in state_lookup:
+        return state
+    customdata = point.get("customdata")
+    if isinstance(customdata, list) and customdata and customdata[-1] in state_lookup:
+        return customdata[-1]
+    return no_update
 
 
 @app.callback(

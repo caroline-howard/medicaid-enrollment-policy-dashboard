@@ -2,6 +2,65 @@
 
 This project uses official public Medicaid/CHIP state-month aggregate data for descriptive monitoring. The dashboard should be read as a source-aware reporting tool, not a causal policy evaluation.
 
+## Policy Context For Interpreting Enrollment Trends
+
+Dashboard metrics and visuals are based on CMS/Data.Medicaid.gov Medicaid and CHIP enrollment and eligibility operations data. The sources below are used only for policy interpretation context; they are not KPI metric sources.
+
+### A. Medicaid Scale And State Variation
+
+KFF describes Medicaid as a major public coverage program and emphasizes its role for children, low-income adults, people with disabilities, and people needing long-term services and supports. KFF also notes that Medicaid is administered by states within federal rules, which is why eligibility rules, administrative processes, delivery systems, and reporting practices can differ across states.
+
+This context matters for the dashboard because a state-vs-national indexed trend can show how one state's enrollment moved relative to the national pattern, but it cannot explain by itself why the state differs.
+
+Source:
+
+- [KFF: 10 Things to Know About Medicaid](https://www.kff.org/medicaid/10-things-to-know-about-medicaid/)
+
+### B. Medicaid Unwinding, Churn, And Net Enrollment Change
+
+McIntyre et al. (2025), "US Coverage Changes During Medicaid Unwinding in 2023," in *JAMA Health Forum*, provides context for interpreting enrollment declines after the observed enrollment peak. The article is useful here because it distinguishes between administrative terminations and net enrollment change. Those concepts are not the same: net enrollment change can differ from total terminations because people may re-enroll, experience churn, or transition to other forms of coverage.
+
+The dashboard does not directly measure churn, uninsured status, coverage transitions, or reasons for disenrollment. It can show aggregate enrollment change over time and state variation, but additional data and a separate research design would be needed to evaluate coverage transitions or causal effects.
+
+Source:
+
+- McIntyre et al. (2025), "US Coverage Changes During Medicaid Unwinding in 2023," *JAMA Health Forum*.
+
+### C. CHIP And Children's Coverage Context
+
+MACPAC describes Medicaid and CHIP as important coverage sources for low-income children and children with disabilities. This context helps explain why the dashboard shows combined Medicaid/CHIP enrollment and also separates Medicaid and CHIP components.
+
+Enrollment data alone cannot show whether children accessed medical care, dental care, prescriptions, or other services. The dashboard should not be interpreted as measuring children's access, healthcare utilization, service quality, or health outcomes.
+
+Source:
+
+- [MACPAC: Access in Brief: Children's Experiences in Accessing Medical Care](https://www.macpac.gov/wp-content/uploads/2025/04/Access-in-Brief-Childrens-Experiences-in-Accessing-Medical-Care.pdf)
+
+### D. What The Dashboard Can And Cannot Show
+
+Can show:
+
+- aggregate Medicaid/CHIP enrollment trends
+- state-level variation
+- selected state vs national indexed trends
+- Medicaid vs CHIP component patterns
+- applications and eligibility determinations
+- population-adjusted context
+- reporting and data quality caveats
+
+Cannot show:
+
+- individual coverage transitions
+- uninsured status
+- churn directly
+- access to care
+- healthcare utilization
+- claims
+- costs
+- diagnoses
+- health outcomes
+- causal policy effects
+
 ## 1. Medicaid And CHIP Basics
 
 Medicaid and the Children's Health Insurance Program (CHIP) are state-federal coverage programs. They are funded by states and the federal government, and states administer the programs within federal requirements.

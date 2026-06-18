@@ -696,6 +696,66 @@ h3 {
   font-weight: 800;
 }
 
+.overview-visual-grid {
+  display: grid;
+  grid-template-columns: minmax(520px, 1.05fr) minmax(420px, 0.95fr);
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+.chart-card-header.stacked {
+  display: block;
+}
+
+.visual-explainer {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #f8fafb;
+  border: 1px solid #dce6e8;
+  border-radius: 8px;
+}
+
+.visual-explainer h3 {
+  margin-bottom: 8px;
+  font-size: 0.98rem;
+}
+
+.visual-explainer ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.visual-explainer li,
+.visual-explainer p {
+  color: #4c5b66;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.index-reference {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.index-reference span {
+  padding: 5px 8px;
+  background: #ffffff;
+  border: 1px solid #cfdadd;
+  border-radius: 6px;
+  color: #253746;
+  font-size: 0.82rem;
+  font-weight: 750;
+}
+
+.source-note {
+  margin-top: 10px;
+  color: #687782;
+  font-size: 0.8rem;
+}
+
 .visually-hidden {
   display: none;
 }
@@ -717,6 +777,10 @@ h3 {
   }
 
   .map-chart-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .overview-visual-grid {
     grid-template-columns: 1fr;
   }
 
@@ -755,6 +819,7 @@ h3 {
   .two-column,
   .map-layout,
   .map-chart-layout,
+  .overview-visual-grid,
   .month-control,
   .metric-detail-panel,
   .chart-card-header,

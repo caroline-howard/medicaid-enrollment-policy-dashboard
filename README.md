@@ -96,7 +96,7 @@ The redesigned Plotly Dash app includes story-driven tabs:
 - Data Quality Review
 - Methods & Limits
 
-The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. The National Snapshot is an executive summary page with KPI cards followed directly by a full-period State vs National Medicaid/CHIP Enrollment Trend chart. The chart indexes both the selected state and national series to January 2019 = 100, uses a selected-state dropdown as its only control, and does not include time-range buttons or a bottom range slider. Detailed applications, eligibility determinations, and application-determination balance trends live in the Eligibility Operations tab. The app also includes a simplified header metadata strip, footer/Data Quality/Methods placement for preliminary-data cautions, muted KPI accents, explicit direction arrows, non-clickable badges, expandable policy-facing metric explanations, and range-slider time-series explorers where detailed trend exploration is the goal.
+The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. The National Snapshot is an executive summary page with KPI cards followed directly by a two-column visualization area: an indexed selected-state vs national Medicaid/CHIP enrollment trend chart and a supporting U.S. choropleth map of state-level percent change since January 2019. The chart indexes both the selected state and national series to January 2019 = 100, uses a selected-state dropdown as its only chart control, and does not include time-range buttons or a bottom range slider. Detailed applications, eligibility determinations, and application-determination balance trends live in the Eligibility Operations tab. The app also includes a simplified header metadata strip, footer/Data Quality/Methods placement for preliminary-data cautions, muted KPI accents, explicit direction arrows, non-clickable badges, expandable policy-facing metric explanations, and range-slider time-series explorers where detailed trend exploration is the goal.
 
 ## Planned Analytics Outputs
 
@@ -128,6 +128,14 @@ Review flags are monitoring prompts, not problem labels or performance scores.
 ## Policy Context
 
 This dashboard is designed for descriptive monitoring and policy context, not causal policy evaluation. See [docs/policy_context.md](docs/policy_context.md) for plain-language context on Medicaid/CHIP state variation, MAGI eligibility, Medicaid expansion, COVID continuous enrollment and unwinding, applications and determinations, population denominators, and dataset limitations.
+
+## Policy Context Sources
+
+- CMS/Data.Medicaid.gov is the metric source for dashboard tables, KPIs, and visuals.
+- McIntyre et al. (2025), "US Coverage Changes During Medicaid Unwinding in 2023," *JAMA Health Forum*, is used to contextualize unwinding, churn, and net enrollment change.
+- [KFF: 10 Things to Know About Medicaid](https://www.kff.org/medicaid/10-things-to-know-about-medicaid/) is used for broader Medicaid scale and state variation context.
+- [MACPAC: Access in Brief: Children's Experiences in Accessing Medical Care](https://www.macpac.gov/wp-content/uploads/2025/04/Access-in-Brief-Childrens-Experiences-in-Accessing-Medical-Care.pdf) is used for CHIP and children's coverage/access context.
+- These sources do not replace the CMS data and are not used as KPI metric sources.
 
 ## Processed Outputs Created
 

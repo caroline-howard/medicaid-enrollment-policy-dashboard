@@ -96,7 +96,7 @@ The redesigned Plotly Dash app includes story-driven tabs:
 - Data Quality Review
 - Methods & Limits
 
-The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. The National Snapshot is an executive summary page that answers the main monitoring question with KPI cards, a “What changed?” answer card, concise policy context, and one annotated national enrollment trend chart. Detailed applications, eligibility determinations, and application-determination balance trends live in the Eligibility Operations tab. The app also includes a simplified header metadata strip, footer/Data Quality/Methods placement for preliminary-data cautions, muted KPI accents, explicit direction arrows, non-clickable badges, expandable policy-facing metric explanations, and range-slider time-series explorers. The “Post-peak period” control is used only as a descriptive monitoring reference, not a causal policy label.
+The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. The National Snapshot is an executive summary page that answers the main monitoring question with KPI cards, a “What changed?” answer card, concise policy context, and one annotated combined Medicaid/CHIP enrollment trend chart. The chart keeps 1Y, 3Y, and All range controls, removes the bottom range slider, shades the post-peak monitoring period directly on the chart, and labels the January 2019 baseline, observed peak, and latest month. Detailed applications, eligibility determinations, and application-determination balance trends live in the Eligibility Operations tab. The app also includes a simplified header metadata strip, footer/Data Quality/Methods placement for preliminary-data cautions, muted KPI accents, explicit direction arrows, non-clickable badges, expandable policy-facing metric explanations, and range-slider time-series explorers where detailed trend exploration is the goal.
 
 ## Planned Analytics Outputs
 
@@ -168,7 +168,7 @@ The Dash app includes a GIS-style State Map Explorer with a linked U.S. chorople
 
 The selected state self-comparison view shows January 2019 baseline enrollment, peak enrollment, latest enrollment, change since January 2019, change from peak, last-12-month change, Medicaid/CHIP component values, applications, determinations, and Application-Determination Balance where available.
 
-The Medicaid vs CHIP Drivers tab shows national and selected-state Medicaid vs CHIP split views plus a selected-state component trend explorer.
+The Medicaid vs CHIP Drivers tab shows national and selected-state Medicaid vs CHIP split views plus a selected-state component trend explorer. The primary component trend view is indexed to January 2019 = 100 so CHIP movement is visible even when Medicaid raw enrollment counts are much larger; a raw-count option remains available for program size context.
 
 Population-adjusted Medicaid/CHIP metrics include enrollment per 1,000 residents, Medicaid enrollment per 1,000 residents, CHIP enrollment per 1,000 residents, applications submitted per 100,000 residents, and eligibility determinations per 100,000 residents.
 

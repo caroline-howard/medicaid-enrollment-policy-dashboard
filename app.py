@@ -320,6 +320,8 @@ def line_figure(
     reference_lines: list[tuple[str, str]] | None = None,
     add_latest_labels: bool = True,
     height: int = 430,
+    show_range_slider: bool = True,
+    show_post_peak_button: bool = True,
 ) -> go.Figure:
     fig = go.Figure()
     x_values = [row["reporting_month"] for row in rows]
@@ -388,7 +390,7 @@ def line_figure(
         font={"family": "Inter, Arial, sans-serif", "color": "#253746"},
         xaxis={
             "title": x_axis_title,
-            "rangeslider": {"visible": True, "thickness": 0.08},
+            "rangeslider": {"visible": show_range_slider, "thickness": 0.08},
             "rangeselector": {
                 "buttons": [
                     {"count": 1, "label": "1Y", "step": "year", "stepmode": "backward"},
@@ -417,7 +419,7 @@ def line_figure(
                     }
                 ],
             }
-        ],
+        ] if show_post_peak_button else [],
     )
     return fig
 
@@ -565,16 +567,6 @@ def metric_details_panel(key: str = "total") -> html.Div:
                 "Technical metric definitions are documented in the repository.",
                 className="technical-note",
             ),
-        ],
-    )
-
-
-def explore_card(title: str, text: str) -> html.Div:
-    return html.Div(
-        className="explore-card",
-        children=[
-            html.H3(title),
-            html.P(text),
         ],
     )
 
@@ -763,17 +755,15 @@ def national_enrollment_figure() -> go.Figure:
     story = national_enrollment_story()
     fig = line_figure(
         national_enrollment,
-        [
-            ("total_medicaid_and_chip_enrollment", "Total Medicaid/CHIP enrollment"),
-            ("total_medicaid_enrollment", "Medicaid enrollment"),
-            ("total_chip_enrollment", "CHIP enrollment"),
-        ],
+        [("total_medicaid_and_chip_enrollment", "Total Medicaid/CHIP enrollment")],
         "National Medicaid/CHIP Enrollment Over Time",
-        f"Question: compare the January 2019 baseline, {month_label(story['peak']['reporting_month'])} peak, and {latest_month} latest month.",
+        f"Compare the January 2019 baseline, {month_label(story['peak']['reporting_month'])} peak, and latest reporting month. The shaded region marks the post-peak monitoring period.",
         "Enrollment count",
         scope_label="National",
-        reference_lines=[(POST_PEAK_CONTEXT_MONTH, "Post-peak monitoring period begins")],
+        reference_lines=[],
         height=390,
+        show_range_slider=False,
+        show_post_peak_button=False,
     )
     fig.add_vrect(
         x0=POST_PEAK_CONTEXT_MONTH,
@@ -970,11 +960,11 @@ def build_overview_tab() -> html.Div:
                                     html.Div(
                                         children=[
                                             html.H2("National Medicaid/CHIP Enrollment Over Time"),
-                                            html.P("What to look for: compare the 2019 baseline, April 2023 peak period, and latest reporting month."),
+                                            html.P("What to look for: baseline to peak to latest enrollment, with the post-peak monitoring period shaded directly on the chart."),
                                         ]
                                     ),
                                     html.Span(
-                                        "Post-peak period: descriptive monitoring reference, not a causal policy label.",
+                                        "The shaded region is descriptive context, not a causal policy label.",
                                         className="help-pill",
                                     ),
                                 ],
@@ -988,23 +978,25 @@ def build_overview_tab() -> html.Div:
                 ],
             ),
             html.Div(
-                className="explore-grid",
+                className="policy-note wide chart-interpretation",
                 children=[
-                    explore_card(
-                        "State Map Explorer",
-                        "Compare raw enrollment counts with population-adjusted enrollment and state-level changes.",
+                    html.H2("How to read this graphic"),
+                    html.Ul(
+                        [
+                            html.Li("This chart shows national combined Medicaid/CHIP enrollment over time."),
+                            html.Li("The shaded region marks the post-peak monitoring period after the observed national enrollment peak."),
+                            html.Li("Use the 1Y, 3Y, and All controls to focus on recent or full-period trends."),
+                            html.Li("This is a descriptive monitoring chart, not a causal policy estimate."),
+                        ]
                     ),
-                    explore_card(
-                        "Medicaid vs CHIP Drivers",
-                        "See whether enrollment changes are concentrated in Medicaid, CHIP, or both.",
-                    ),
-                    explore_card(
-                        "Eligibility Operations",
-                        "Review applications, eligibility determinations, and application-determination balance as descriptive operations indicators.",
-                    ),
-                    explore_card(
-                        "Data Quality Review",
-                        "Check which fields are complete enough for headline reporting and which require caution.",
+                    html.H2("What this chart shows"),
+                    html.P(
+                        (
+                            f"National Medicaid/CHIP enrollment rose from {format_value(story['baseline_value'])} "
+                            f"in {month_label(story['baseline']['reporting_month'])} to {format_value(story['peak_value'])} "
+                            f"in {month_label(story['peak']['reporting_month'])}, then declined to {format_value(story['latest_value'])} "
+                            f"by {latest_month}. Use the Medicaid vs CHIP Drivers tab to see whether changes are concentrated in Medicaid, CHIP, or both."
+                        )
                     ),
                 ],
             ),
@@ -1390,17 +1382,109 @@ def chip_trend_rows(rows: list[dict[str, str]], mode: str) -> list[dict[str, str
     for row in rows:
         medicaid = to_float(row.get("total_medicaid_enrollment"))
         chip = to_float(row.get("total_chip_enrollment"))
+        medicaid_index = ratio(medicaid, baseline_medicaid, 100)
+        chip_index = ratio(chip, baseline_chip, 100)
         if mode == "indexed":
             output.append(
                 {
                     **row,
-                    "medicaid_series": ratio(medicaid, baseline_medicaid, 100),
-                    "chip_series": ratio(chip, baseline_chip, 100),
+                    "medicaid_series": medicaid_index,
+                    "chip_series": chip_index,
+                    "medicaid_raw": medicaid,
+                    "chip_raw": chip,
+                    "medicaid_index": medicaid_index,
+                    "chip_index": chip_index,
                 }
             )
         else:
-            output.append({**row, "medicaid_series": medicaid, "chip_series": chip})
+            output.append(
+                {
+                    **row,
+                    "medicaid_series": medicaid,
+                    "chip_series": chip,
+                    "medicaid_raw": medicaid,
+                    "chip_raw": chip,
+                    "medicaid_index": medicaid_index,
+                    "chip_index": chip_index,
+                }
+            )
     return output
+
+
+def chip_component_figure(rows: list[dict[str, str | float | None]], state_name: str, mode: str) -> go.Figure:
+    indexed = mode == "indexed"
+    title = (
+        "Selected State Medicaid vs CHIP Enrollment, Indexed to Jan. 2019"
+        if indexed
+        else "Selected State Medicaid vs CHIP Enrollment, Raw Counts"
+    )
+    subtitle = (
+        f"{state_name}: index values show relative movement since January 2019. Medicaid and CHIP are both set to 100 at the January 2019 baseline so their trends can be compared despite different enrollment sizes."
+        if indexed
+        else f"{state_name}: raw counts show program size. Because Medicaid enrollment is usually much larger than CHIP enrollment, CHIP movement may be harder to see in this view."
+    )
+    fig = go.Figure()
+    traces = [
+        ("medicaid_series", "Medicaid enrollment index" if indexed else "Medicaid enrollment", "medicaid_raw", "medicaid_index", "#12324a"),
+        ("chip_series", "CHIP enrollment index" if indexed else "CHIP enrollment", "chip_raw", "chip_index", "#2f7d78"),
+    ]
+    for value_field, label, raw_field, index_field, color in traces:
+        fig.add_trace(
+            go.Scatter(
+                x=[row["reporting_month"] for row in rows],
+                y=[to_float(row.get(value_field)) for row in rows],
+                mode="lines",
+                name=label,
+                line={"width": 2.8, "color": color},
+                customdata=[
+                    [
+                        state_name,
+                        "Medicaid" if "medicaid" in value_field else "CHIP",
+                        to_float(row.get(raw_field)),
+                        to_float(row.get(index_field)),
+                        "Preliminary" if row.get("preliminary_or_updated") == "P" else "Final/updated",
+                    ]
+                    for row in rows
+                ],
+                hovertemplate=(
+                    "State: %{customdata[0]}<br>"
+                    "Reporting month: %{x|%b %Y}<br>"
+                    "Program component: %{customdata[1]}<br>"
+                    "Raw enrollment: %{customdata[2]:,.0f}<br>"
+                    "Indexed value: %{customdata[3]:,.1f}<br>"
+                    "Reporting status: %{customdata[4]}<extra></extra>"
+                ),
+            )
+        )
+    fig.update_layout(
+        title={"text": f"{title}<br><sup>{subtitle}</sup>"},
+        margin={"l": 58, "r": 28, "t": 88, "b": 48},
+        height=420,
+        hovermode="x unified",
+        legend={"orientation": "h", "y": -0.24},
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font={"family": "Inter, Arial, sans-serif", "color": "#253746"},
+        xaxis={
+            "title": "Reporting month",
+            "rangeselector": {
+                "buttons": [
+                    {"count": 1, "label": "1Y", "step": "year", "stepmode": "backward"},
+                    {"count": 3, "label": "3Y", "step": "year", "stepmode": "backward"},
+                    {"step": "all", "label": "All"},
+                ]
+            },
+            "rangeslider": {"visible": True, "thickness": 0.07},
+            "showgrid": True,
+            "gridcolor": "#e8eef0",
+        },
+        yaxis={
+            "title": "Index, Jan. 2019 = 100" if indexed else "Enrollment count",
+            "showgrid": True,
+            "gridcolor": "#eef2f3",
+        },
+    )
+    return fig
 
 
 def latest_split_bar(selected_state: str | None = None) -> go.Figure:
@@ -1475,6 +1559,17 @@ def build_chip_tab() -> html.Div:
                     ),
                     html.Div(id="state-chip-component-summary", className="kpi-grid compact"),
                     dcc.Graph(id="state-chip-trend", config={"displayModeBar": False}),
+                    html.Div(
+                        className="policy-note chart-interpretation compact",
+                        children=[
+                            html.H2("Why use an indexed view?"),
+                            html.P(
+                                "Medicaid enrollment is usually much larger than CHIP enrollment, so raw-count charts can make CHIP appear visually flat. "
+                                "The indexed view sets Medicaid and CHIP to 100 in January 2019, making relative movement easier to compare."
+                            ),
+                            html.P("Indexed trends show relative change, not raw enrollment size."),
+                        ],
+                    ),
                 ],
             ),
             html.Div(id="state-chip-summary", className="kpi-grid compact"),
@@ -2084,22 +2179,7 @@ def update_state_sections(selected_state: str, chip_trend_mode: str):
     medicaid_change = latest_medicaid - baseline_medicaid if latest_medicaid is not None and baseline_medicaid is not None else None
     chip_change = latest_chip - baseline_chip if latest_chip is not None and baseline_chip is not None else None
     focus = component_change_focus(medicaid_change, chip_change)
-    chip_y_axis = "Enrollment count" if chip_trend_mode == "raw" else "Indexed enrollment, Jan. 2019 = 100"
-    chip_value_kind = "integer" if chip_trend_mode == "raw" else "decimal"
-    chip_fig = line_figure(
-        chip_rows,
-        [("medicaid_series", "Medicaid enrollment"), ("chip_series", "CHIP enrollment")],
-        f"{selected['state_name']} Medicaid vs CHIP Enrollment Components, {month_label(BASELINE_MONTH)}-{latest_month}",
-        "Raw counts show program size; indexed view shows relative movement since Jan. 2019. Latest month may be preliminary.",
-        chip_y_axis,
-        scope_label=selected["state_name"],
-        value_kind=chip_value_kind,
-        reference_lines=[
-            (BASELINE_MONTH, "Jan. 2019 baseline"),
-            (peak_row["reporting_month"], "Selected state peak enrollment"),
-            (latest_row["reporting_month"], "Latest month"),
-        ],
-    )
+    chip_fig = chip_component_figure(chip_rows, selected["state_name"], chip_trend_mode)
     ops_fig = line_figure(
         rows,
         [("total_applications_for_financial_assistance_submitted_at_state_level", "Applications submitted"), ("total_medicaid_and_chip_determinations", "Determinations")],

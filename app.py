@@ -2229,21 +2229,6 @@ app.layout = html.Div(
                     "state variation, and reporting quality.",
                     className="header-copy",
                 ),
-                html.Div(
-                    className="hero-metadata-row",
-                    children=[
-                        html.Div(
-                            className="hero-metadata-strip",
-                            children=[
-                                html.Span([html.Strong("Source:"), " CMS public data"]),
-                                html.Span("Jan. 2019-Feb. 2026"),
-                                html.Span("50 states + DC"),
-                                html.Span("State-month aggregate panel"),
-                                html.Span("Descriptive monitoring"),
-                            ],
-                        ),
-                    ],
-                ),
             ],
         ),
         dcc.Tabs(

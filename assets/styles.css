@@ -40,10 +40,10 @@ h3 {
 }
 
 .app-header {
-  padding: 28px 48px 22px;
-  background: #ffffff;
-  border-bottom: 1px solid #dce2df;
-  color: #1f2933;
+  padding: 34px 48px 28px;
+  background: #102434;
+  border-bottom: 1px solid #0a1b27;
+  color: #ffffff;
 }
 
 .eyebrow {
@@ -57,54 +57,15 @@ h3 {
 
 .app-header h1 {
   max-width: 980px;
-  color: #13232d;
+  color: #ffffff;
 }
 
 .header-copy {
   max-width: 920px;
   margin-bottom: 0;
-  color: #53636e;
+  color: #d7e5e9;
   font-size: 1rem;
   line-height: 1.45;
-}
-
-.hero-metadata-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 14px;
-}
-
-.hero-metadata-strip {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 10px;
-  align-items: center;
-  max-width: 980px;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-}
-
-.hero-metadata-strip span {
-  color: #63727d;
-  font-size: 0.82rem;
-  line-height: 1.35;
-  white-space: nowrap;
-}
-
-.hero-metadata-strip span + span::before {
-  content: "·";
-  margin-right: 10px;
-  color: #9aa8af;
-}
-
-.hero-metadata-strip strong {
-  color: #394955;
-  font-weight: 800;
 }
 
 .amber-chip {
@@ -150,17 +111,17 @@ h3 {
 
 .monitoring-question {
   display: grid;
-  gap: 5px;
+  gap: 6px;
   max-width: 920px;
-  padding: 12px 14px;
-  background: #f4f8f9;
-  border: 1px solid #d5e3e6;
-  border-left: 4px solid #2f7d78;
+  padding: 14px 16px;
+  background: #fff8e5;
+  border: 1px solid #e4c96a;
+  border-left: 5px solid #b7791f;
   border-radius: 8px;
 }
 
 .monitoring-question span {
-  color: #2f6b66;
+  color: #7a5300;
   font-size: 0.76rem;
   font-weight: 850;
   letter-spacing: 0.02em;
@@ -169,8 +130,10 @@ h3 {
 
 .monitoring-question h3 {
   margin-bottom: 0;
-  color: #12324a;
-  font-size: 1.08rem;
+  color: #172832;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.16rem;
+  font-weight: 700;
   line-height: 1.35;
 }
 
@@ -840,18 +803,6 @@ h3 {
 @media (max-width: 900px) {
   .app-header {
     padding: 28px 22px 20px;
-  }
-
-  .hero-metadata-row {
-    align-items: stretch;
-  }
-
-  .hero-metadata-strip {
-    width: 100%;
-  }
-
-  .hero-metadata-strip span {
-    white-space: normal;
   }
 
   .tab-page {

@@ -450,70 +450,98 @@ def card(label: str, value: str, note: str = "") -> html.Div:
 
 
 KPI_DETAILS = {
-    "total": {
-        "title": "Latest total Medicaid/CHIP enrollment",
-        "definition": "Combined Medicaid and CHIP enrollment reported for the current CMS reporting month.",
-        "source": "total_medicaid_and_chip_enrollment",
-        "interpretation": "Descriptive count for monitoring overall public coverage enrollment.",
-        "caution": "Raw counts are affected by population size and do not measure healthcare utilization or policy effects.",
-        "type": "Count",
+    "baseline": {
+        "title": "Baseline enrollment",
+        "measures": "National total Medicaid/CHIP enrollment at the January 2019 starting point for this project period.",
+        "matters": "It anchors the monitoring period so later enrollment levels can be compared with a consistent reference point.",
+        "interpret": "Use this as the starting point for descriptive change over time, then compare it with peak and latest enrollment.",
+        "caution": "This is an aggregate enrollment count. It does not show individual eligibility experiences, access to care, service use, health outcomes, claims, or costs.",
+        "related": "National Snapshot, State Map Explorer, Medicaid vs CHIP Drivers",
     },
-    "medicaid": {
-        "title": "Latest Medicaid enrollment",
-        "definition": "Medicaid enrollment reported for the current CMS reporting month.",
-        "source": "total_medicaid_enrollment",
-        "interpretation": "Shows the Medicaid component of combined Medicaid/CHIP enrollment.",
-        "caution": "State eligibility rules, reporting practices, and population size affect comparisons.",
-        "type": "Count",
+    "peak": {
+        "title": "Peak enrollment",
+        "measures": "The highest observed national total Medicaid/CHIP enrollment month in the cleaned dashboard dataset.",
+        "matters": "It helps identify the observed high point in the available data before comparing later enrollment levels.",
+        "interpret": "Use this as an observed reference point, not as a target or performance benchmark.",
+        "caution": "Highest observed enrollment is descriptive. It does not explain why enrollment changed or estimate any policy effect.",
+        "related": "National Snapshot, State Map Explorer, Methods & Limits",
     },
-    "chip": {
-        "title": "Latest CHIP enrollment",
-        "definition": "CHIP enrollment reported for the current CMS reporting month.",
-        "source": "total_chip_enrollment",
-        "interpretation": "Shows the CHIP component of combined Medicaid/CHIP enrollment.",
-        "caution": "CHIP structure and reporting can vary by state; this is descriptive context.",
-        "type": "Count",
+    "latest": {
+        "title": "Latest enrollment",
+        "measures": "National total Medicaid/CHIP enrollment in the latest CMS reporting month available in the dashboard.",
+        "matters": "It gives the most current national public coverage enrollment view in the dataset.",
+        "interpret": "Compare this value with the January 2019 baseline and observed peak to understand the latest descriptive position.",
+        "caution": "Latest-month values may be preliminary and can be revised in later source updates.",
+        "related": "National Snapshot, State Map Explorer, Data Quality Review",
     },
-    "applications": {
-        "title": "Applications submitted",
-        "definition": "Applications for financial assistance submitted at state level during the reporting month.",
-        "source": "applications_submitted",
-        "interpretation": "Descriptive indicator of application volume.",
-        "caution": "Not a backlog, approval rate, timeliness measure, or performance score.",
-        "type": "Descriptive operations indicator",
+    "change-baseline": {
+        "title": "Change since Jan. 2019",
+        "measures": "The difference between latest national Medicaid/CHIP enrollment and the January 2019 baseline.",
+        "matters": "It summarizes how far the latest enrollment count is from the project starting point.",
+        "interpret": "The arrow and sign show direction of change only. They do not imply the change is good or bad.",
+        "caution": "This is descriptive monitoring and does not estimate what caused the change.",
+        "related": "National Snapshot, State Map Explorer, Medicaid vs CHIP Drivers",
     },
-    "determinations": {
-        "title": "Eligibility determinations",
-        "definition": "Medicaid/CHIP determinations at application during the reporting month.",
-        "source": "total_medicaid_and_chip_determinations",
-        "interpretation": "Descriptive indicator of eligibility determination activity.",
-        "caution": "Does not measure approval rate, quality, pending workload, or timeliness.",
-        "type": "Descriptive operations indicator",
+    "change-peak": {
+        "title": "Change from peak",
+        "measures": "The difference between latest national Medicaid/CHIP enrollment and the highest observed enrollment month in the cleaned data.",
+        "matters": "It shows how far the latest value is from the observed national high point.",
+        "interpret": "A negative value means latest enrollment is below the observed peak. This is descriptive, not a performance judgment.",
+        "caution": "This describes the change from the observed enrollment peak in the cleaned data. It does not estimate the cause of the change.",
+        "related": "National Snapshot, Data Quality Review, Methods & Limits",
     },
-    "status": {
-        "title": "Latest reporting status",
-        "definition": "Whether the latest CMS reporting month is preliminary or final/updated in the project dataset.",
-        "source": "preliminary_or_updated / final_report",
-        "interpretation": "Helps users decide how cautiously to interpret the latest reporting month.",
-        "caution": "Preliminary records may change in later source updates.",
-        "type": "Status",
+    "operations": {
+        "title": "Latest operations activity",
+        "measures": "Applications submitted and Medicaid/CHIP eligibility determinations in the latest reporting month.",
+        "matters": "These values provide descriptive context on activity entering and moving through eligibility operations.",
+        "interpret": "Compare applications and determinations with population-adjusted operations views and state trends for more context.",
+        "caution": "Applications and determinations are descriptive operations indicators. They are not backlog, timeliness, approval-rate, or performance measures.",
+        "related": "Eligibility Operations, Monitoring Flags, Data Quality Review",
     },
 }
 
 
-def kpi_button(key: str, title: str, value: str, footer: str, status: str | None = None) -> html.Button:
+def kpi_button(
+    key: str,
+    title: str,
+    value: str | list,
+    footer: str,
+    badge: str | None = None,
+    variant: str = "neutral",
+    delta: str | None = None,
+    percent: str | None = None,
+    helper: str | None = None,
+) -> html.Button:
     children = [
-        html.Span(title),
+        html.Div(
+            className="kpi-topline",
+            children=[
+                html.Span(title),
+                html.Em(badge, className="kpi-badge") if badge else None,
+            ],
+        ),
         html.Strong(value),
+        html.Div(
+            className="delta-row",
+            children=[
+                html.Span(delta, className="delta-value") if delta else None,
+                html.Span(percent, className="delta-percent") if percent else None,
+            ],
+        )
+        if delta or percent
+        else None,
         html.Small(footer),
+        html.P(helper, className="kpi-helper") if helper else None,
     ]
-    if status:
-        children.append(html.Em(status, className="status-chip"))
-    return html.Button(id=f"kpi-{key}", className="kpi-card kpi-button", children=children)
+    return html.Button(
+        id=f"kpi-{key}",
+        className=f"kpi-card kpi-button kpi-{variant}",
+        children=[child for child in children if child is not None],
+    )
 
 
 def metric_details_panel(key: str = "total") -> html.Div:
-    detail = KPI_DETAILS.get(key, KPI_DETAILS["total"])
+    detail = KPI_DETAILS.get(key, KPI_DETAILS["baseline"])
     return html.Div(
         className="metric-detail-panel",
         children=[
@@ -521,17 +549,22 @@ def metric_details_panel(key: str = "total") -> html.Div:
                 children=[
                     html.P("Metric details", className="eyebrow"),
                     html.H3(detail["title"]),
+                    html.P("Click another summary card to change this explanation.", className="detail-hint"),
                 ]
             ),
             html.Div(
                 className="metric-detail-grid",
                 children=[
-                    html.Div([html.Span("Definition"), html.P(detail["definition"])]),
-                    html.Div([html.Span("Source field"), html.P(detail["source"])]),
-                    html.Div([html.Span("What this means"), html.P(detail["interpretation"])]),
+                    html.Div([html.Span("What this measures"), html.P(detail["measures"])]),
+                    html.Div([html.Span("Why it matters"), html.P(detail["matters"])]),
+                    html.Div([html.Span("How to interpret it"), html.P(detail["interpret"])]),
                     html.Div([html.Span("Use caution"), html.P(detail["caution"])]),
-                    html.Div([html.Span("Metric type"), html.P(detail["type"])]),
+                    html.Div([html.Span("Related dashboard views"), html.P(detail["related"])]),
                 ],
+            ),
+            html.P(
+                "Technical metric definitions are documented in the repository.",
+                className="technical-note",
             ),
         ],
     )
@@ -686,6 +719,16 @@ def national_enrollment_story() -> dict[str, object]:
     }
 
 
+def signed_delta_parts(value: float | None) -> tuple[str, str, str]:
+    if value is None:
+        return "", "Not available", "neutral"
+    if value > 0:
+        return "↑", format_value(value, "signed_integer"), "up"
+    if value < 0:
+        return "↓", format_value(value, "signed_integer"), "down"
+    return "→", format_value(value, "signed_integer"), "neutral"
+
+
 def add_chart_point(fig: go.Figure, row: dict[str, str], field: str, label: str, color: str = "#b7791f") -> None:
     value = to_float(row.get(field))
     if value is None:
@@ -781,49 +824,90 @@ def flag_type_options() -> list[dict[str, str]]:
 def build_overview_tab() -> html.Div:
     totals = current_national_totals()
     story = national_enrollment_story()
+    baseline_arrow, baseline_delta, baseline_direction = signed_delta_parts(story["change_from_baseline"])
+    peak_arrow, peak_delta, peak_direction = signed_delta_parts(story["change_from_peak"])
     return html.Div(
         className="tab-page",
         children=[
             section_header(
                 "National Snapshot",
                 "How have national Medicaid/CHIP enrollment, applications, and eligibility determinations changed over time?",
-                "Start with the key answer, review current reporting-month KPIs, then use the trend explorers for deeper context.",
-            ),
-            html.Div(
-                className="key-answer-box",
-                children=[
-                    html.P("Key answer", className="eyebrow"),
-                    html.P(
-                        (
-                            f"National Medicaid/CHIP enrollment was {format_value(story['baseline_value'])} in "
-                            f"{month_label(story['baseline']['reporting_month'])}, peaked at {format_value(story['peak_value'])} "
-                            f"in {month_label(story['peak']['reporting_month'])}, and was {format_value(story['latest_value'])} "
-                            f"in {latest_month}. That is {format_value(story['change_from_baseline'], 'signed_integer')} "
-                            f"from baseline and {format_value(story['change_from_peak'], 'signed_integer')} from the observed peak. "
-                            "Applications and determinations are descriptive operations indicators, not performance scores."
-                        )
-                    ),
-                ],
+                "Review baseline, peak, latest reporting month, descriptive enrollment changes, and current eligibility operations activity.",
             ),
             html.Div(
                 className="section-subhead",
                 children=[
-                    html.H2("National Snapshot KPIs"),
-                    html.P("Latest values from the current CMS reporting month. Click a card for definition and interpretation."),
+                    html.H2("National Monitoring Summary"),
+                    html.P(
+                        "Key values showing baseline, peak, latest reporting month, and descriptive changes in Medicaid/CHIP enrollment and eligibility operations. Click a card to learn what the metric means and how to interpret it."
+                    ),
                 ],
             ),
             html.Div(
                 className="kpi-grid overview-kpis",
                 children=[
-                    kpi_button("total", "Latest total Medicaid/CHIP enrollment", format_value(totals["total"]), latest_month),
-                    kpi_button("medicaid", "Latest Medicaid enrollment", format_value(totals["medicaid"]), latest_month),
-                    kpi_button("chip", "Latest CHIP enrollment", format_value(totals["chip"]), latest_month),
-                    kpi_button("applications", "Applications submitted", format_value(totals["applications"]), latest_month, "Operations"),
-                    kpi_button("determinations", "Eligibility determinations", format_value(totals["determinations"]), latest_month, "Operations"),
-                    kpi_button("status", "Latest reporting status", latest_preliminary_status, latest_month, latest_preliminary_status),
+                    kpi_button(
+                        "baseline",
+                        "Baseline enrollment",
+                        format_value(story["baseline_value"]),
+                        month_label(story["baseline"]["reporting_month"]),
+                        "Starting point",
+                        "baseline",
+                        helper="Starting point for the project period.",
+                    ),
+                    kpi_button(
+                        "peak",
+                        "Peak enrollment",
+                        format_value(story["peak_value"]),
+                        f"Peak month: {month_label(story['peak']['reporting_month'])}",
+                        "Highest observed",
+                        "peak",
+                        helper="Highest observed national enrollment.",
+                    ),
+                    kpi_button(
+                        "latest",
+                        "Latest enrollment",
+                        format_value(story["latest_value"]),
+                        latest_month,
+                        "Preliminary" if latest_preliminary_status == "Preliminary" else "Latest month",
+                        "latest",
+                        helper="Most recent reporting value.",
+                    ),
+                    kpi_button(
+                        "change-baseline",
+                        "Change since Jan. 2019",
+                        f"{baseline_arrow} {baseline_delta}",
+                        f"Percent change: {format_value(story['percent_change_from_baseline'], 'percent')}",
+                        "Above baseline" if baseline_direction == "up" else "Below baseline" if baseline_direction == "down" else "At baseline",
+                        f"delta-{baseline_direction}",
+                        percent=format_value(story["percent_change_from_baseline"], "percent"),
+                        helper="Descriptive change from baseline.",
+                    ),
+                    kpi_button(
+                        "change-peak",
+                        "Change from peak",
+                        f"{peak_arrow} {peak_delta}",
+                        f"Percent change from peak: {format_value(story['percent_change_from_peak'], 'percent')}",
+                        "Below peak" if peak_direction == "down" else "Above peak" if peak_direction == "up" else "At peak",
+                        f"delta-{peak_direction}",
+                        percent=format_value(story["percent_change_from_peak"], "percent"),
+                        helper="Post-peak descriptive shift; not causal.",
+                    ),
+                    kpi_button(
+                        "operations",
+                        "Latest operations activity",
+                        [
+                            html.Span(f"{format_short(totals['applications'])} applications", className="operation-line"),
+                            html.Span(f"{format_short(totals['determinations'])} determinations", className="operation-line"),
+                        ],
+                        latest_month,
+                        "Operations",
+                        "operations",
+                        helper="Applications and determinations; descriptive operations context.",
+                    ),
                 ],
             ),
-            html.Div(id="national-kpi-details", children=metric_details_panel("total")),
+            html.Div(id="national-kpi-details", children=metric_details_panel("baseline")),
             html.Div(
                 className="two-column trend-grid",
                 children=[
@@ -1838,15 +1922,10 @@ app.layout = html.Div(
                                 html.Span([html.Strong("Purpose:"), " Descriptive monitoring"]),
                             ],
                         ),
-                        html.Div(
-                            className="hero-status",
-                            children=[html.Strong("Status:"), " Latest month preliminary"],
-                        ),
                     ],
                 ),
             ],
         ),
-        html.Div(className="global-warning", children=NOTE_TEXT),
         dcc.Tabs(
             id="main-tabs",
             value="overview",
@@ -1863,7 +1942,10 @@ app.layout = html.Div(
         ),
         html.Footer(
             className="app-footer",
-            children="Built from official CMS/Data.Medicaid.gov public aggregate data. Descriptive monitoring only; not causal policy evaluation.",
+            children=(
+                "Built from official CMS/Data.Medicaid.gov public aggregate data. Latest-month values may be preliminary. "
+                "Descriptive monitoring only; not beneficiary-level or causal policy evaluation."
+            ),
         ),
     ],
 )
@@ -1871,15 +1953,15 @@ app.layout = html.Div(
 
 @app.callback(
     Output("national-kpi-details", "children"),
-    Input("kpi-total", "n_clicks"),
-    Input("kpi-medicaid", "n_clicks"),
-    Input("kpi-chip", "n_clicks"),
-    Input("kpi-applications", "n_clicks"),
-    Input("kpi-determinations", "n_clicks"),
-    Input("kpi-status", "n_clicks"),
+    Input("kpi-baseline", "n_clicks"),
+    Input("kpi-peak", "n_clicks"),
+    Input("kpi-latest", "n_clicks"),
+    Input("kpi-change-baseline", "n_clicks"),
+    Input("kpi-change-peak", "n_clicks"),
+    Input("kpi-operations", "n_clicks"),
 )
 def update_national_kpi_details(*_clicks):
-    triggered = ctx.triggered_id or "kpi-total"
+    triggered = ctx.triggered_id or "kpi-baseline"
     key = str(triggered).replace("kpi-", "")
     return metric_details_panel(key)
 

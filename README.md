@@ -96,7 +96,7 @@ The redesigned Plotly Dash app includes story-driven tabs:
 - Data Quality Review
 - Methods & Limits
 
-The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. It includes concise global caveats, question-based tab headers, cleaner National Snapshot KPI cards with expandable metric definitions, interactive Plotly time-series explorers with range sliders, range selector buttons, annotated baseline/peak/latest points, indexed trend options, and interpretation cards. The “Post-peak period” control is used only as a descriptive monitoring reference, not a causal policy label. A professional footer emphasizes descriptive monitoring only.
+The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. It includes a simplified header metadata strip, footer/Data Quality/Methods placement for preliminary-data cautions, and National Monitoring Summary KPI cards that answer baseline, peak, latest, change-from-baseline, change-from-peak, and latest operations questions. KPI cards use muted color accents, explicit direction arrows, non-clickable badges, and expandable policy-facing metric explanations. Interactive Plotly time-series explorers include range sliders, range selector buttons, annotated baseline/peak/latest points, indexed trend options, and interpretation cards. The “Post-peak period” control is used only as a descriptive monitoring reference, not a causal policy label.
 
 ## Planned Analytics Outputs
 

@@ -574,21 +574,21 @@ TIMELINE_EVENTS = [
         "source": "McIntyre et al. (2025)",
     },
     {
-        "key": "chip",
-        "period": "CHIP context",
-        "label": "Medicaid and CHIP",
-        "title": "Medicaid and CHIP context",
-        "context": "Medicaid and CHIP are shown together because CMS reports combined and separate measures. CHIP is especially important for children's coverage.",
-        "matters": "This explains why the dashboard includes both combined and component views.",
-        "source": "MACPAC",
+        "key": "stabilization",
+        "period": "2024-2025",
+        "label": "Post-unwinding stabilization",
+        "title": "Post-unwinding stabilization period",
+        "context": "After the initial unwinding period, national and state enrollment trends begin to stabilize, although levels may remain lower than the peak.",
+        "matters": "This period helps distinguish temporary unwinding disruption from a more settled post-renewal pattern.",
+        "source": "CMS/Data.Medicaid.gov",
     },
     {
-        "key": "latest",
-        "period": "Latest",
+        "key": "recent",
+        "period": "2025-2026",
         "label": "Recent reporting",
         "title": "Recent CMS reporting period",
-        "context": "Recent public CMS data may include reporting caveats or preliminary status.",
-        "matters": "Recent values should be interpreted with source notes and Methods & Limits.",
+        "context": "The most recent public CMS enrollment data provide the latest view of national and state Medicaid/CHIP trends, but some values may be preliminary or reported with lag.",
+        "matters": "Recent values should be interpreted with source notes and Methods & Limits, especially when comparing short-term changes.",
         "source": "CMS/Data.Medicaid.gov",
     },
 ]
@@ -2524,8 +2524,8 @@ def update_national_kpi_details(*_clicks):
     Input("timeline-growth", "n_clicks"),
     Input("timeline-unwinding", "n_clicks"),
     Input("timeline-variation", "n_clicks"),
-    Input("timeline-chip", "n_clicks"),
-    Input("timeline-latest", "n_clicks"),
+    Input("timeline-stabilization", "n_clicks"),
+    Input("timeline-recent", "n_clicks"),
 )
 def update_timeline_detail(*_clicks):
     if not ctx.triggered_id:

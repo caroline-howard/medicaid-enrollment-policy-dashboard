@@ -42,20 +42,20 @@ The National Snapshot timeline provides policy and reporting context for major e
 - Interpret as: support for looking at both state-level patterns and national totals.
 - Do not interpret as: direct measurement of churn, uninsured status, re-enrollment, or coverage transitions in this dashboard.
 
-### CHIP Context: Medicaid And CHIP
+### 2024-2025: Post-Unwinding Stabilization
 
-- Event: Medicaid and CHIP context.
-- Explanation: Medicaid and CHIP are shown together because CMS reports combined and separate measures. CHIP is especially important for children's coverage.
-- Source: MACPAC.
-- Interpret as: context for reviewing the Medicaid vs CHIP Drivers tab.
-- Do not interpret as: evidence about children's access to care, dental care, prescriptions, service quality, or health outcomes.
+- Event: Post-unwinding stabilization period.
+- Explanation: After the initial unwinding period, national and state enrollment trends begin to stabilize, although levels may remain lower than the peak.
+- Source: CMS/Data.Medicaid.gov.
+- Interpret as: context for distinguishing temporary unwinding disruption from a more settled post-renewal pattern.
+- Do not interpret as: evidence that all states stabilized at the same pace or for the same reasons.
 
-### Latest: Recent CMS Reporting Period
+### 2025-2026: Recent CMS Reporting Period
 
 - Event: Recent CMS reporting period.
-- Explanation: Recent public CMS data may include reporting caveats or preliminary status.
+- Explanation: The most recent public CMS enrollment data provide the latest view of national and state Medicaid/CHIP trends, but some values may be preliminary or reported with lag.
 - Source: CMS/Data.Medicaid.gov.
-- Interpret as: a reminder to read recent values with source notes and Methods & Limits.
+- Interpret as: a reminder to read recent values with source notes and Methods & Limits, especially when comparing short-term changes.
 - Do not interpret as: final beneficiary-level data or a complete performance assessment.
 
 ### A. Medicaid Scale And State Variation

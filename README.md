@@ -128,6 +128,8 @@ Review flags are monitoring prompts, not problem labels or performance scores.
 
 This dashboard is designed for descriptive monitoring and policy context, not causal policy evaluation. See [docs/policy_context.md](docs/policy_context.md) for plain-language context on Medicaid/CHIP state variation, MAGI eligibility, Medicaid expansion, COVID continuous enrollment and unwinding, applications and determinations, population denominators, and dataset limitations.
 
+The National Snapshot includes an interactive policy timeline that provides context for major Medicaid/CHIP enrollment trend periods. The timeline uses external sources for context only; dashboard metrics remain CMS-derived.
+
 ## Policy Context Sources
 
 - CMS/Data.Medicaid.gov is the metric source for dashboard tables, KPIs, and visuals.

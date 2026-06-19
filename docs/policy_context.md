@@ -6,6 +6,74 @@ This project uses official public Medicaid/CHIP state-month aggregate data for d
 
 Dashboard metrics and visuals are based on CMS/Data.Medicaid.gov Medicaid and CHIP enrollment and eligibility operations data. The sources below are used only for policy interpretation context; they are not KPI metric sources.
 
+## Timeline Context For Interpreting Medicaid/CHIP Enrollment Trends
+
+The National Snapshot timeline provides policy and reporting context for major enrollment trend periods. It should be used to interpret the dashboard carefully, not to claim that a single event caused every national or state-level change.
+
+### January 2019: Dashboard Baseline
+
+- Event: Dashboard baseline.
+- Explanation: January 2019 is used as the comparison point for the indexed trend. The line chart sets state and national Medicaid/CHIP enrollment to 100 at this point.
+- Source: CMS dashboard data.
+- Interpret as: a baseline that makes relative trend comparisons easier across states and nationally.
+- Do not interpret as: a policy event, performance target, or ideal enrollment level.
+
+### March 2020: Continuous Coverage Period Begins
+
+- Event: Continuous coverage period begins.
+- Explanation: During the COVID-19 public health emergency, states received enhanced federal Medicaid funding and generally could not disenroll beneficiaries while the continuous coverage provision was in effect.
+- Source: CMS/Medicaid.gov, McIntyre et al. (2025), and KFF.
+- Interpret as: important context for pandemic-era enrollment growth.
+- Do not interpret as: proof that continuous coverage alone explains every state trend.
+
+### 2020-2022: Pandemic-Era Enrollment Growth
+
+- Event: Pandemic-era enrollment growth.
+- Explanation: Medicaid/CHIP enrollment grew during the continuous coverage period. The dashboard shows the timing and size of that aggregate growth.
+- Source: CMS dashboard data and KFF.
+- Interpret as: context for why national and many state indexed trends rise above the January 2019 baseline.
+- Do not interpret as: a measure of individual eligibility changes, access to care, utilization, or health outcomes.
+
+### March-April 2023: Unwinding Begins
+
+- Event: Unwinding begins.
+- Explanation: States resumed Medicaid renewals and disenrollments after the continuous coverage period ended.
+- Source: McIntyre et al. (2025) and CMS/Medicaid.gov.
+- Interpret as: context for the return to regular eligibility operations and later enrollment changes.
+- Do not interpret as: evidence that every decline was caused by unwinding.
+
+### 2023-2024: State Variation And Churn
+
+- Event: State variation and churn.
+- Explanation: McIntyre et al. found that net Medicaid enrollment losses during unwinding varied substantially across states and were smaller than total terminations.
+- Source: McIntyre et al. (2025).
+- Interpret as: support for looking at both state-level patterns and national totals.
+- Do not interpret as: direct measurement of churn, uninsured status, re-enrollment, or coverage transitions in this dashboard.
+
+### 2024 And After: Regular Operations And Reporting Context
+
+- Event: Regular operations and reporting context.
+- Explanation: After unwinding, Medicaid eligibility operations returned toward regular renewal and reporting processes, while public reporting continued to include important caveats.
+- Source: CMS/Medicaid.gov.
+- Interpret as: a reminder to read recent values alongside source notes, reporting status, and state context.
+- Do not interpret as: confirmation that all states have identical reporting practices or complete operational fields.
+
+### Program Context: Children And CHIP
+
+- Event: Children and CHIP context.
+- Explanation: Medicaid and CHIP are shown together because CMS reports combined and separate measures. CHIP is especially important for children's coverage.
+- Source: MACPAC.
+- Interpret as: context for reviewing the Medicaid vs CHIP Drivers tab.
+- Do not interpret as: evidence about children's access to care, dental care, prescriptions, service quality, or health outcomes.
+
+### Latest Reporting Period
+
+- Event: Latest CMS reporting period.
+- Explanation: Latest values show current reported enrollment in the public CMS data.
+- Source: CMS/Data.Medicaid.gov.
+- Interpret as: the current public aggregate reporting snapshot available to the dashboard.
+- Do not interpret as: final beneficiary-level data or a complete performance assessment.
+
 ### A. Medicaid Scale And State Variation
 
 KFF describes Medicaid as a major public coverage program and emphasizes its role for children, low-income adults, people with disabilities, and people needing long-term services and supports. KFF also notes that Medicaid is administered by states within federal rules, which is why eligibility rules, administrative processes, delivery systems, and reporting practices can differ across states.

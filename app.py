@@ -505,6 +505,127 @@ KPI_DETAILS = {
 }
 
 
+TIMELINE_EVENTS = [
+    {
+        "key": "baseline",
+        "period": "January 2019",
+        "label": "2019 baseline",
+        "title": "Dashboard baseline",
+        "context": "January 2019 is the comparison point for the indexed trend. The line chart sets state and national Medicaid/CHIP enrollment to 100 at this point.",
+        "matters": "Using a baseline lets users compare relative change across states and nationally even when raw enrollment counts are very different.",
+        "source": "CMS dashboard data",
+    },
+    {
+        "key": "continuous",
+        "period": "March 2020",
+        "label": "Continuous coverage",
+        "title": "Continuous coverage period begins",
+        "context": "During the COVID-19 public health emergency, states received enhanced federal Medicaid funding and generally could not disenroll beneficiaries while the continuous coverage provision was in effect.",
+        "matters": "This context helps users interpret why Medicaid/CHIP enrollment increased during the pandemic-era period.",
+        "source": "CMS / McIntyre et al. / KFF",
+    },
+    {
+        "key": "growth",
+        "period": "2020-2022",
+        "label": "Enrollment growth",
+        "title": "Pandemic-era enrollment growth",
+        "context": "Medicaid/CHIP enrollment grew during the continuous coverage period. The dashboard shows the timing and size of that growth, not individual eligibility changes or care use.",
+        "matters": "This period is important for understanding why national and many state indexed trends rise above the January 2019 baseline.",
+        "source": "CMS dashboard data / KFF",
+    },
+    {
+        "key": "unwinding",
+        "period": "March-April 2023",
+        "label": "Unwinding",
+        "title": "Unwinding begins",
+        "context": "States resumed Medicaid renewals and disenrollments after the continuous coverage period ended.",
+        "matters": "Research on unwinding shows that terminations, net enrollment change, re-enrollment, and transitions to other coverage are not the same thing.",
+        "source": "McIntyre et al. (2025) / CMS",
+    },
+    {
+        "key": "variation",
+        "period": "2023-2024",
+        "label": "State variation/churn",
+        "title": "State variation and churn",
+        "context": "McIntyre et al. found that net Medicaid enrollment losses during unwinding varied substantially across states and were smaller than total terminations.",
+        "matters": "This supports using the map and selected-state comparison instead of relying only on national totals.",
+        "source": "McIntyre et al. (2025)",
+    },
+    {
+        "key": "operations",
+        "period": "2024 and after",
+        "label": "Regular operations",
+        "title": "Regular operations and reporting context",
+        "context": "After unwinding, Medicaid eligibility operations returned toward regular renewal and reporting processes, while public reporting continued to include important caveats.",
+        "matters": "Recent values should be interpreted with source notes, preliminary status, and state context.",
+        "source": "CMS / Medicaid.gov",
+    },
+    {
+        "key": "chip",
+        "period": "Program context",
+        "label": "CHIP context",
+        "title": "Children and CHIP context",
+        "context": "Medicaid and CHIP are shown together because CMS reports combined and separate measures. CHIP is especially important for children's coverage.",
+        "matters": "The dashboard separates Medicaid and CHIP so users can see whether changes are concentrated in Medicaid, CHIP, or both. Enrollment does not measure access to care or outcomes.",
+        "source": "MACPAC",
+    },
+    {
+        "key": "latest",
+        "period": latest_month,
+        "label": "Latest reporting",
+        "title": "Latest CMS reporting period",
+        "context": "Latest values show current reported enrollment in the public CMS data.",
+        "matters": "Latest values should be interpreted alongside reporting status, state context, and Methods & Limits.",
+        "source": "CMS/Data.Medicaid.gov",
+    },
+]
+
+
+def timeline_event_by_key(key: str | None) -> dict[str, str]:
+    for event in TIMELINE_EVENTS:
+        if event["key"] == key:
+            return event
+    return TIMELINE_EVENTS[0]
+
+
+def timeline_button(event: dict[str, str]) -> html.Button:
+    tooltip = (
+        f"{event['period']} - {event['title']}\n"
+        f"Context: {event['context']}\n"
+        f"Why this matters: {event['matters']}\n"
+        f"Source: {event['source']}"
+    )
+    return html.Button(
+        id=f"timeline-{event['key']}",
+        n_clicks=0,
+        className="timeline-event-button",
+        title=tooltip,
+        children=[
+            html.Span(event["period"], className="timeline-date"),
+            html.Strong(event["label"]),
+            html.Span(event["source"], className="timeline-source-tag"),
+        ],
+    )
+
+
+def timeline_detail(event: dict[str, str]) -> html.Div:
+    return html.Div(
+        className="timeline-detail-card",
+        children=[
+            html.Div(
+                className="timeline-detail-meta",
+                children=[
+                    html.Span(f"Event: {event['title']}"),
+                    html.Span(f"Period: {event['period']}"),
+                    html.Span(f"Source: {event['source']}"),
+                ],
+            ),
+            html.P([html.Strong("Context: "), event["context"]]),
+            html.P([html.Strong("Why this matters: "), event["matters"]]),
+        ],
+    )
+
+
 def kpi_button(
     key: str,
     title: str,
@@ -1221,18 +1342,18 @@ def build_overview_tab() -> html.Div:
                     html.Div(
                         className="trend-context-block",
                         children=[
-                            html.H3("Context for major trend periods"),
-                            html.Div(
-                                className="trend-context-row",
-                                children=[
-                                    html.Div(className="trend-context-bubble baseline", children=[html.Strong("Baseline"), html.P("January 2019 is the comparison point for the indexed trend.")]),
-                                    html.Div(className="trend-context-bubble growth", children=[html.Strong("Enrollment growth"), html.P("Enrollment rose during the COVID-19 public health emergency and continuous coverage period.")]),
-                                    html.Div(className="trend-context-bubble peak", children=[html.Strong("Observed peak"), html.P("National Medicaid/CHIP enrollment reached its observed peak in 2023. Research on Medicaid unwinding shows that state experiences varied and that net enrollment change is not the same as total terminations.")]),
-                                    html.Div(className="trend-context-bubble latest", children=[html.Strong("Latest"), html.P("Latest CMS values show current reported enrollment levels and should be interpreted with reporting status and state context.")]),
-                                ],
-                            ),
+                            html.H3("Policy timeline for interpreting Medicaid/CHIP enrollment trends"),
                             html.P(
-                                "Dashboard metrics: CMS/Data.Medicaid.gov. Context: McIntyre et al. (2025), KFF, and MACPAC.",
+                                "Click each event to see policy and reporting context for the enrollment trend. Events provide context, not a complete explanation of every state-level change.",
+                                className="timeline-subtitle",
+                            ),
+                            html.Div(
+                                className="policy-timeline",
+                                children=[timeline_button(event) for event in TIMELINE_EVENTS],
+                            ),
+                            html.Div(id="timeline-detail", children=timeline_detail(TIMELINE_EVENTS[0])),
+                            html.P(
+                                "Dashboard metrics: CMS/Data.Medicaid.gov. Timeline context: McIntyre et al. (2025), KFF, MACPAC, CMS, and Medicaid.gov.",
                                 className="source-note",
                             ),
                         ],
@@ -2275,13 +2396,27 @@ def build_about_tab() -> html.Div:
             html.Div(
                 className="policy-note wide",
                 children=[
-                    html.H2("Context Sources"),
-                    html.P(
-                        "McIntyre et al. (2025), JAMA Health Forum, provides context on Medicaid unwinding, state variation, churn, and the difference between terminations and net enrollment change. KFF provides Medicaid scale and state-variation context. MACPAC provides CHIP and children's coverage/access context."
+                    html.H2("Policy Context Sources Used In The Timeline"),
+                    html.H3("Dashboard metrics"),
+                    html.Ul(
+                        [
+                            html.Li("CMS/Data.Medicaid.gov State Medicaid and CHIP Applications, Eligibility Determinations, and Enrollment Data."),
+                            html.Li("U.S. Census Bureau NST-EST2024-POP annual resident population estimates for population denominators."),
+                        ]
                     ),
-                    html.P(
-                        "External sources provide policy context only. Dashboard metrics are derived from CMS/Data.Medicaid.gov and official population denominator data."
+                    html.H3("Unwinding and coverage-change context"),
+                    html.Ul(
+                        [
+                            html.Li("McIntyre et al. (2025), JAMA Health Forum, for unwinding, churn, coverage transitions, and net enrollment context."),
+                            html.Li("CMS/Medicaid.gov returning-to-regular-operations materials for continuous coverage and renewal context."),
+                            html.Li("KFF Medicaid enrollment and unwinding materials for national/state variation context."),
+                        ]
                     ),
+                    html.H3("Medicaid program and state variation context"),
+                    html.Ul([html.Li("KFF 10 Things to Know About Medicaid and related Medicaid state-variation context.")]),
+                    html.H3("CHIP and children's coverage context"),
+                    html.Ul([html.Li("MACPAC children's coverage/access materials for Medicaid and CHIP context.")]),
+                    html.P("External sources provide policy context only. Dashboard metrics are derived from CMS/Data.Medicaid.gov and population denominator data."),
                 ],
             ),
         ],
@@ -2344,6 +2479,24 @@ def update_national_kpi_details(*_clicks):
     triggered = ctx.triggered_id
     key = str(triggered).replace("kpi-", "")
     return metric_details_panel(key)
+
+
+@app.callback(
+    Output("timeline-detail", "children"),
+    Input("timeline-baseline", "n_clicks"),
+    Input("timeline-continuous", "n_clicks"),
+    Input("timeline-growth", "n_clicks"),
+    Input("timeline-unwinding", "n_clicks"),
+    Input("timeline-variation", "n_clicks"),
+    Input("timeline-operations", "n_clicks"),
+    Input("timeline-chip", "n_clicks"),
+    Input("timeline-latest", "n_clicks"),
+)
+def update_timeline_detail(*_clicks):
+    if not ctx.triggered_id:
+        return timeline_detail(TIMELINE_EVENTS[0])
+    key = str(ctx.triggered_id).replace("timeline-", "")
+    return timeline_detail(timeline_event_by_key(key))
 
 
 @app.callback(

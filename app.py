@@ -945,9 +945,10 @@ def national_enrollment_figure(selected_state: str = "CA") -> go.Figure:
             y=[row["state_index"] for row in rows],
             mode="lines",
             name=f"{selected['state_name']} Medicaid/CHIP enrollment index",
-            line={"width": 3, "color": "#2f7d78"},
+            line={"width": 4, "color": "#0072b2"},
             customdata=[[selected["state_name"], row["state_raw"], row["state_status"]] for row in rows],
             hovertemplate=(
+                f"Series: {selected['state_name']} Medicaid/CHIP enrollment index<br>"
                 "Geography: %{customdata[0]}<br>"
                 "Reporting month: %{x|%b %Y}<br>"
                 "Indexed enrollment: %{y:,.1f}<br>"
@@ -962,9 +963,10 @@ def national_enrollment_figure(selected_state: str = "CA") -> go.Figure:
             y=[row["national_index"] for row in rows],
             mode="lines",
             name="National Medicaid/CHIP enrollment index",
-            line={"width": 3, "color": "#12324a"},
+            line={"width": 2.5, "color": "#6b7280", "dash": "dash"},
             customdata=[[row["national_raw"]] for row in rows],
             hovertemplate=(
+                "Series: National Medicaid/CHIP enrollment index<br>"
                 "Geography: National<br>"
                 "Reporting month: %{x|%b %Y}<br>"
                 "Indexed enrollment: %{y:,.1f}<br>"
@@ -974,7 +976,7 @@ def national_enrollment_figure(selected_state: str = "CA") -> go.Figure:
     )
     add_index_annotation(fig, baseline, "national_index", "Baseline", "#6b8793", "bottom center")
     add_index_annotation(fig, national_peak, "national_index", "Observed peak", "#b7791f")
-    add_index_annotation(fig, state_peak, "state_index", "State peak", "#2f7d78", "bottom center")
+    add_index_annotation(fig, state_peak, "state_index", "State peak", "#0072b2", "bottom center")
     add_index_annotation(fig, latest, "national_index", "Latest", "#12324a")
     fig.update_layout(
         title={
@@ -1010,6 +1012,7 @@ def overview_change_map(selected_state: str = DEFAULT_OVERVIEW_STATE) -> go.Figu
         selected_state = DEFAULT_OVERVIEW_STATE
     rows = sorted(state_map_rows, key=lambda row: row["state_name"])
     values = [to_float(row.get("map_percent_change_since_2019")) for row in rows]
+    selected_outline_color = "#111827"
     fig = go.Figure(
         go.Choropleth(
             locations=[row["state_abbreviation"] for row in rows],
@@ -1039,27 +1042,17 @@ def overview_change_map(selected_state: str = DEFAULT_OVERVIEW_STATE) -> go.Figu
                 "Latest total Medicaid/CHIP enrollment: %{customdata[4]:,.0f}<br>"
                 "Reporting status: %{customdata[5]}<extra></extra>"
             ),
-            marker_line_color="white",
-            marker_line_width=0.8,
+            marker_line_color=[
+                selected_outline_color if row["state_abbreviation"] == selected_state else "white"
+                for row in rows
+            ],
+            marker_line_width=[
+                4 if row["state_abbreviation"] == selected_state else 0.8
+                for row in rows
+            ],
             showscale=True,
         )
     )
-    selected = state_map_lookup.get(selected_state)
-    if selected:
-        fig.add_trace(
-            go.Choropleth(
-                locations=[selected_state],
-                z=[to_float(selected.get("map_percent_change_since_2019"))],
-                locationmode="USA-states",
-                colorscale="RdBu",
-                reversescale=True,
-                zmid=0,
-                marker_line_color="#111827",
-                marker_line_width=3,
-                showscale=False,
-                hoverinfo="skip",
-            )
-        )
     fig.update_layout(
         geo={"scope": "usa", "bgcolor": "rgba(0,0,0,0)", "lakecolor": "#f8fafc"},
         margin={"l": 0, "r": 0, "t": 0, "b": 0},
@@ -1294,9 +1287,13 @@ def build_overview_tab() -> html.Div:
                                         children=[
 	                                            html.Div(
 	                                                children=[
-	                                                    html.H2("State Medicaid/CHIP Enrollment Change Since January 2019"),
-	                                                ]
-	                                            ),
+                                                    html.H2("State Medicaid/CHIP Enrollment Change Since January 2019"),
+                                                    html.P(
+                                                        "Outlined state = selected state. Fill color still represents percent change since January 2019.",
+                                                        className="map-selection-note",
+                                                    ),
+                                                ]
+                                            ),
                                         ],
                                     ),
                                     dcc.Graph(

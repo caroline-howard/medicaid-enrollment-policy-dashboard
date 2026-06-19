@@ -808,6 +808,14 @@ h3 {
   display: block;
 }
 
+.map-selection-note {
+  margin-top: 4px;
+  margin-bottom: 0;
+  color: #53636e;
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
 .visual-explainer {
   margin-top: 12px;
   padding: 12px 14px;

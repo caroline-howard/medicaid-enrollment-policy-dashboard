@@ -1127,7 +1127,7 @@ def build_overview_tab() -> html.Div:
                                     html.Div("Trend", className="tile-icon"),
                                     html.H3("Trend view"),
                                     html.P("Use the indexed line chart to compare the selected state with the national Medicaid/CHIP trend over time."),
-                                    html.Span("Jan. 2019 = 100"),
+                                    html.Span("Indexed trend"),
                                 ],
                             ),
                             html.Div("then compare", className="visual-connector"),
@@ -1155,7 +1155,7 @@ def build_overview_tab() -> html.Div:
                                                 children=[
                                                     html.H2("Indexed Enrollment Trend: Selected State vs National"),
                                                     html.P(
-                                                        "January 2019 = 100. This chart compares the selected state’s Medicaid/CHIP enrollment trend with the national trend on the same scale. It shows relative change over time, not raw enrollment totals."
+                                                        "Compare the selected state’s Medicaid/CHIP enrollment trend with the national trend on the same relative scale."
                                                     ),
                                                 ]
                                             ),
@@ -1165,20 +1165,6 @@ def build_overview_tab() -> html.Div:
                                         id="national-index-trend",
                                         figure=national_enrollment_figure(DEFAULT_OVERVIEW_STATE),
                                         config={"displayModeBar": False},
-                                    ),
-                                    html.Div(
-                                        className="visual-explainer",
-                                        children=[
-                                            html.H3("How to read this chart"),
-                                            html.Div(
-                                                className="index-reference",
-                                                children=[
-                                                    html.Span("100 = January 2019 baseline"),
-                                                    html.Span("Above 100 = higher than baseline"),
-                                                    html.Span("Below 100 = lower than baseline"),
-                                                ],
-                                            ),
-                                        ],
                                     ),
                                 ],
                             ),
@@ -1191,7 +1177,7 @@ def build_overview_tab() -> html.Div:
                                             html.Div(
                                                 children=[
                                                     html.H2("State Medicaid/CHIP Enrollment Change Since January 2019"),
-                                                    html.P("This map shows the percent change in each state’s Medicaid/CHIP enrollment relative to January 2019. It does not show total enrollment counts."),
+                                                    html.P("Compare state-level enrollment change across the country using the same January 2019 reference point."),
                                                 ]
                                             ),
                                         ],
@@ -1201,21 +1187,38 @@ def build_overview_tab() -> html.Div:
                                         figure=overview_change_map(DEFAULT_OVERVIEW_STATE),
                                         config={"displayModeBar": False},
                                     ),
+                                ],
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        className="visual-explainer combined-visual-explainer",
+                        children=[
+                            html.H3("How to read these visuals"),
+                            html.Div(
+                                className="visual-explainer-grid",
+                                children=[
                                     html.Div(
-                                        className="visual-explainer",
                                         children=[
-                                            html.H3("How to read this map"),
-                                            html.Ul(
-                                                [
-                                                    html.Li("This map shows each state’s percent change in Medicaid/CHIP enrollment since January 2019."),
-                                                    html.Li("It does not show current enrollment totals."),
-                                                    html.Li("Red indicates a larger increase relative to January 2019; blue indicates a decrease."),
-                                                    html.Li("Use the map for national context and the line chart to understand the selected state’s trend over time."),
-                                                ]
+                                            html.H4("Line chart"),
+                                            html.P(
+                                                "Both lines start at 100 in January 2019. A value of 110 means enrollment is 10% higher than the January 2019 baseline; a value of 95 means enrollment is 5% lower. This indexing makes the selected state and national trends comparable even though their raw enrollment counts are very different."
+                                            ),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        children=[
+                                            html.H4("Map"),
+                                            html.P(
+                                                "This map shows the percent change in each state’s Medicaid/CHIP enrollment relative to January 2019. It does not show total enrollment counts."
                                             ),
                                         ],
                                     ),
                                 ],
+                            ),
+                            html.P(
+                                "Together, the line chart shows the timing of change for the selected state, while the map shows how that state compares with other states.",
+                                className="visual-explainer-bridge",
                             ),
                         ],
                     ),

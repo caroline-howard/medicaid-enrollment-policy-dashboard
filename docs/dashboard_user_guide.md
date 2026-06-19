@@ -23,6 +23,14 @@ The selected-state Medicaid vs CHIP chart defaults to an indexed view titled “
 
 The raw-count option remains available for program size context. Hover text includes the state, reporting month, program component, raw enrollment, indexed value, and reporting status. Indexed values show relative movement, not raw enrollment size.
 
+## Methods & Limits
+
+The Methods & Limits tab is the final documentation tab in the app. It explains the data source, coverage period, geography, state-month grain, appropriate uses, and interpretation limits.
+
+Data quality review now lives inside Methods & Limits. This section includes missingness by field, missingness by state, missingness by month and preliminary status, excluded fields, population denominator notes, and caveats about public aggregate CMS reporting.
+
+Use this tab when deciding whether a metric is reliable enough for headline interpretation. Fields such as adult Medicaid enrollment, call center measures, processing-time fields, renewals/redeterminations, and pending applications are not used as headline KPIs because of missingness, reporting variation, or unavailable clean standalone fields.
+
 ## Interpretation Limits
 
 The dashboard supports descriptive monitoring and policy context. It does not estimate causal policy effects, measure beneficiary-level outcomes, or show claims, utilization, costs, diagnoses, access to care, or individual eligibility experiences.

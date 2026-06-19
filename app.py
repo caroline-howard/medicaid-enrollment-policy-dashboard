@@ -476,7 +476,7 @@ KPI_DETAILS = {
         "matters": "This is the current national coverage snapshot in the public CMS reporting extract, useful for routine Medicaid/CHIP monitoring and reporting conversations.",
         "interpret": "Read it as the latest position of national enrollment within the project period: whether current enrollment is closer to the baseline, the observed peak, or somewhere in between.",
         "caution": "Latest-month values may be preliminary and can be revised in later source updates.",
-        "related": "National Snapshot, State Map Explorer, Data Quality Review",
+        "related": "National Snapshot, State Map Explorer, Methods & Limits",
     },
     "change-baseline": {
         "title": "Change since Jan. 2019",
@@ -492,7 +492,7 @@ KPI_DETAILS = {
         "matters": "This helps interpret the post-peak enrollment position, especially for readers tracking the return to regular eligibility operations after the continuous enrollment period ended.",
         "interpret": "A downward arrow means latest enrollment is below the observed peak; an upward arrow would mean it is above the observed peak. The value describes distance from that high point.",
         "caution": "This describes the change from the observed enrollment peak in the cleaned data. It does not estimate the cause of the change.",
-        "related": "National Snapshot, Data Quality Review, Methods & Limits",
+        "related": "National Snapshot, Methods & Limits",
     },
     "operations": {
         "title": "Latest operations activity",
@@ -500,7 +500,7 @@ KPI_DETAILS = {
         "matters": "Applications and determinations give policy and operations readers a view of eligibility-system activity, separate from enrollment counts.",
         "interpret": "Read the two values together as same-month activity indicators: applications reflect people entering the financial-assistance process, while determinations reflect application-stage eligibility decisions reported that month.",
         "caution": "Applications and determinations are descriptive operations indicators. They are not backlog, timeliness, approval-rate, or performance measures.",
-        "related": "Eligibility Operations, Monitoring Flags, Data Quality Review",
+        "related": "Eligibility Operations, Monitoring Flags, Methods & Limits",
     },
 }
 
@@ -2101,7 +2101,7 @@ def build_monitoring_tab() -> html.Div:
                                 "They are prompts for source review and follow-up questions, not labels of state problems or policy impact."
                             ),
                             html.P(
-                                "Use these alongside source notes, preliminary reporting status, and data quality tables."
+                                "Use these alongside source notes and the data quality caveats in Methods & Limits."
                             ),
                         ],
                     ),
@@ -2150,7 +2150,7 @@ def missingness_field_bar() -> go.Figure:
     return fig
 
 
-def build_quality_tab() -> html.Div:
+def data_quality_caveats_section() -> html.Div:
     excluded = [
         ("Adult Medicaid enrollment", "High missingness; excluded from headline KPIs."),
         ("Call center volume", "High missingness and state reporting variation."),
@@ -2162,13 +2162,28 @@ def build_quality_tab() -> html.Div:
     ]
     top_field_missing = sorted(quality_field_rows, key=lambda row: to_float(row.get("missing_percent")) or 0, reverse=True)
     top_state_missing = sorted(quality_state_rows, key=lambda row: to_float(row.get("missing_value_percent")) or 0, reverse=True)
+    latest_month_rows = sorted(quality_month_rows, key=lambda row: row.get("reporting_month", ""))[-6:]
     return html.Div(
-        className="tab-page",
+        className="methods-quality-section",
         children=[
-            section_header(
-                "Data Quality Review",
-                "Which fields are reliable enough for headline reporting, and which require caution?",
-                "Review missingness, preliminary reporting, and excluded fields before interpreting headline metrics.",
+            html.Div(
+                className="policy-note wide",
+                children=[
+                    html.H2("Data Quality and Reporting Caveats"),
+                    html.P(
+                        "Public aggregate CMS reporting is useful for descriptive monitoring, but field completeness, "
+                        "state reporting variation, and preliminary latest-month records affect how headline metrics "
+                        "should be interpreted."
+                    ),
+                    html.Ul(
+                        [
+                            html.Li("Latest-month values may be preliminary and can be revised in later source updates."),
+                            html.Li("Missingness varies by field, state, and reporting month."),
+                            html.Li("Fields with high missingness or unclear standalone interpretation are excluded from headline KPIs."),
+                            html.Li("Applications and determinations are operations indicators, not complete performance scores."),
+                        ]
+                    ),
+                ],
             ),
             html.Div(
                 className="two-column",
@@ -2180,7 +2195,7 @@ def build_quality_tab() -> html.Div:
             html.Div(
                 className="two-column",
                 children=[
-                    html.Div(className="panel", children=[html.H2("Latest Month Status"), table_from_rows(quality_month_rows[-6:], [("reporting_month", "Month"), ("preliminary_records", "Preliminary records")], 6)]),
+                    html.Div(className="panel", children=[html.H2("Missingness By Month And Preliminary Status"), table_from_rows(latest_month_rows, [("reporting_month", "Month"), ("missing_value_percent", "Missing %"), ("preliminary_records", "Preliminary records")], 6)]),
                     html.Div(className="panel", children=[html.H2("Excluded From Headline Metrics"), html.Ul([html.Li([html.Strong(f"{field}: "), reason]) for field, reason in excluded])]),
                 ],
             ),
@@ -2216,15 +2231,44 @@ def build_about_tab() -> html.Div:
             html.Div(
                 className="policy-note wide",
                 children=[
-                    html.H2("Policy Context"),
+                    html.H2("Data Sources and Coverage"),
+                    html.P("Medicaid data source: CMS/Data.Medicaid.gov State Medicaid and CHIP Applications, Eligibility Determinations, and Enrollment Data."),
+                    html.P("Population denominator source: U.S. Census Bureau NST-EST2024-POP annual resident population estimates."),
+                    html.P("Medicaid data coverage: January 2019 through February 2026. Geography: all 50 states plus DC. Grain: monthly state-level aggregate data."),
+                ],
+            ),
+            html.Div(
+                className="panel",
+                children=[
+                    html.H2("What The Dashboard Can Show"),
                     html.Ul(
                         [
-                            html.Li("Medicaid and CHIP are state-federal coverage programs, and states administer them within federal rules."),
-                            html.Li("State variation in eligibility rules, program structure, reporting practices, and administrative processes affects comparisons."),
-                            html.Li("Pandemic-era continuous enrollment and the post-2023 unwinding period are important context for interpreting enrollment changes."),
-                            html.Li("Population-adjusted metrics help compare states of different sizes, but they are not usage rates or healthcare utilization measures."),
-                            html.Li("Applications and determinations are descriptive operations indicators, not approval rates, timeliness measures, or performance scores."),
-                            html.Li("The dashboard supports descriptive monitoring and context review; it does not estimate causal policy effects."),
+                            html.Li("Medicaid/CHIP enrollment trends across the full reporting period."),
+                            html.Li("State-level variation and selected state vs national indexed trends."),
+                            html.Li("Medicaid vs CHIP component patterns."),
+                            html.Li("Applications and eligibility determinations as descriptive operations indicators."),
+                            html.Li("Population-adjusted context for comparing states of different sizes."),
+                            html.Li("Reporting and data quality caveats, including missingness and preliminary latest-month status."),
+                            html.Li("Monitoring flags for changes that may warrant further policy or operations review."),
+                        ]
+                    ),
+                ],
+            ),
+            data_quality_caveats_section(),
+            html.Div(
+                className="panel",
+                children=[
+                    html.H2("What The Dashboard Cannot Show"),
+                    html.Ul(
+                        [
+                            html.Li("Beneficiary-level outcomes or individual coverage transitions."),
+                            html.Li("Direct measures of churn, uninsured status, or transitions to other coverage."),
+                            html.Li("County-level patterns."),
+                            html.Li("Claims, utilization, cost, diagnosis, access-to-care, or health outcome data."),
+                            html.Li("Causal policy effects."),
+                            html.Li("Pending applications as a validated dashboard field."),
+                            html.Li("Renewal volumes as a clean standalone measure."),
+                            html.Li("Complete operations performance across all source fields."),
                         ]
                     ),
                 ],
@@ -2232,29 +2276,13 @@ def build_about_tab() -> html.Div:
             html.Div(
                 className="policy-note wide",
                 children=[
-                    html.H2("Data Sources And Coverage"),
-                    html.P("Medicaid data source: CMS/Data.Medicaid.gov State Medicaid and CHIP Applications, Eligibility Determinations, and Enrollment Data."),
-                    html.P("Population denominator source: U.S. Census Bureau NST-EST2024-POP annual resident population estimates."),
-                    html.P("Medicaid data coverage: January 2019 through February 2026. Geography: all 50 states plus DC. Grain: monthly state-level aggregate data."),
-                ],
-            ),
-            html.Div(
-                className="policy-note wide",
-                children=[
                     html.H2("Context Sources"),
                     html.P(
-                        "External sources are used to help interpret the enrollment trend. McIntyre et al. (2025) provides context on Medicaid unwinding, state variation, churn, and the difference between terminations and net enrollment change. KFF provides broad Medicaid policy and state-variation context. MACPAC provides children's coverage and access context for Medicaid/CHIP."
+                        "McIntyre et al. (2025), JAMA Health Forum, provides context on Medicaid unwinding, state variation, churn, and the difference between terminations and net enrollment change. KFF provides Medicaid scale and state-variation context. MACPAC provides CHIP and children's coverage/access context."
                     ),
                     html.P(
-                        "Dashboard metrics remain based on CMS/Data.Medicaid.gov and official population denominator data."
+                        "External sources provide policy context only. Dashboard metrics are derived from CMS/Data.Medicaid.gov and official population denominator data."
                     ),
-                ],
-            ),
-            html.Div(
-                className="two-column",
-                children=[
-                    html.Div(className="panel", children=[html.H2("What The Dashboard Can Show"), html.Ul([html.Li("Medicaid/CHIP enrollment trends."), html.Li("Medicaid vs CHIP patterns."), html.Li("State variation."), html.Li("Applications and eligibility determinations."), html.Li("Population-adjusted context."), html.Li("Data quality caveats."), html.Li("Review flags for unusual changes.")])]),
-                    html.Div(className="panel", children=[html.H2("What The Dashboard Cannot Show"), html.Ul([html.Li("No beneficiary-level outcomes."), html.Li("No county-level patterns."), html.Li("No claims, utilization, cost, or diagnosis data."), html.Li("No causal policy effects."), html.Li("No pending applications."), html.Li("No renewal volumes as clean standalone measures."), html.Li("No complete operations performance across all fields.")])]),
                 ],
             ),
         ],
@@ -2288,7 +2316,6 @@ app.layout = html.Div(
                 dcc.Tab(label="Medicaid vs CHIP Drivers", value="chip", children=build_chip_tab()),
                 dcc.Tab(label="Eligibility Operations", value="operations", children=build_operations_tab()),
                 dcc.Tab(label="Monitoring Flags", value="monitoring", children=build_monitoring_tab()),
-                dcc.Tab(label="Data Quality Review", value="quality", children=build_quality_tab()),
                 dcc.Tab(label="Methods & Limits", value="about", children=build_about_tab()),
             ],
         ),

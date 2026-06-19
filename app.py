@@ -505,6 +505,37 @@ KPI_DETAILS = {
 }
 
 
+KPI_VARIANTS = {
+    "baseline": "baseline",
+    "peak": "peak",
+    "latest": "latest",
+    "change-baseline": "delta-up",
+    "change-peak": "delta-down",
+    "operations": "operations",
+}
+
+
+def kpi_class(key: str, selected_key: str | None = None, variant: str | None = None) -> str:
+    classes = ["kpi-card", "kpi-button", f"kpi-{variant or KPI_VARIANTS[key]}"]
+    if key == selected_key:
+        classes.append("kpi-selected")
+    return " ".join(classes)
+
+
+def kpi_classes_for_selection(selected_key: str | None = None) -> tuple[str, str, str, str, str, str]:
+    story = national_enrollment_story()
+    _, _, baseline_direction = signed_delta_parts(story["change_from_baseline"])
+    _, _, peak_direction = signed_delta_parts(story["change_from_peak"])
+    return (
+        kpi_class("baseline", selected_key, "baseline"),
+        kpi_class("peak", selected_key, "peak"),
+        kpi_class("latest", selected_key, "latest"),
+        kpi_class("change-baseline", selected_key, f"delta-{baseline_direction}"),
+        kpi_class("change-peak", selected_key, f"delta-{peak_direction}"),
+        kpi_class("operations", selected_key, "operations"),
+    )
+
+
 TIMELINE_EVENTS = [
     {
         "key": "continuous",
@@ -616,9 +647,10 @@ def kpi_button(
     variant: str = "neutral",
     delta: str | None = None,
     percent: str | None = None,
-    helper: str | None = None,
+    category: str | None = None,
 ) -> html.Button:
     children = [
+        html.Span(category, className="kpi-category") if category else None,
         html.Div(
             className="kpi-topline",
             children=[
@@ -626,7 +658,7 @@ def kpi_button(
                 html.Em(badge, className="kpi-badge") if badge else None,
             ],
         ),
-        html.Strong(value),
+        html.Strong(value) if isinstance(value, str) else html.Div(value, className="operations-mini-grid"),
         html.Div(
             className="delta-row",
             children=[
@@ -637,11 +669,10 @@ def kpi_button(
         if delta or percent
         else None,
         html.Small(footer),
-        html.P(helper, className="kpi-helper") if helper else None,
     ]
     return html.Button(
         id=f"kpi-{key}",
-        className=f"kpi-card kpi-button kpi-{variant}",
+        className=kpi_class(key, variant=variant),
         children=[child for child in children if child is not None],
     )
 
@@ -652,6 +683,7 @@ def metric_details_panel(key: str = "total") -> html.Div:
         className="metric-detail-panel",
         children=[
             html.Div(
+                className="metric-detail-heading",
                 children=[
                     html.P("Metric details", className="eyebrow"),
                     html.H3(detail["title"]),
@@ -661,15 +693,11 @@ def metric_details_panel(key: str = "total") -> html.Div:
             html.Div(
                 className="metric-detail-grid",
                 children=[
-                    html.Div([html.Span("What this measures"), html.P(detail["measures"])]),
+                    html.Div([html.Span("What this means"), html.P(detail["measures"]), html.P(detail["interpret"])]),
                     html.Div([html.Span("Why it matters"), html.P(detail["matters"])]),
-                    html.Div([html.Span("How to interpret it"), html.P(detail["interpret"])]),
+                    html.Div([html.Span("Use caution"), html.P(detail["caution"])]),
                     html.Div([html.Span("Related dashboard views"), html.P(detail["related"])]),
                 ],
-            ),
-            html.P(
-                "Technical metric definitions are documented in the repository.",
-                className="technical-note",
             ),
         ],
     )
@@ -1139,8 +1167,8 @@ def build_overview_tab() -> html.Div:
                     html.Div(
                         className="section-title-row",
                         children=[
-                            html.H2("National Monitoring Summary"),
-                            html.Span("Click a card to explore.", className="instruction-pill"),
+	                            html.H2("National Monitoring Summary"),
+	                            html.Span("Click any card for interpretation.", className="instruction-pill"),
                         ],
                     ),
                 ],
@@ -1148,65 +1176,65 @@ def build_overview_tab() -> html.Div:
             html.Div(
                 className="kpi-grid overview-kpis",
                 children=[
-                    kpi_button(
-                        "baseline",
-                        "Baseline enrollment",
-                        format_value(story["baseline_value"]),
-                        month_label(story["baseline"]["reporting_month"]),
-                        "Starting point",
-                        "baseline",
-                        helper="Starting point for the project period.",
-                    ),
+	                    kpi_button(
+	                        "baseline",
+	                        "Baseline enrollment",
+	                        format_value(story["baseline_value"]),
+	                        month_label(story["baseline"]["reporting_month"]),
+	                        "Starting point",
+	                        "baseline",
+	                        category="Enrollment level",
+	                    ),
                     kpi_button(
                         "peak",
                         "Peak enrollment",
                         format_value(story["peak_value"]),
-                        f"Peak month: {month_label(story['peak']['reporting_month'])}",
-                        "Highest observed",
-                        "peak",
-                        helper="Highest observed national enrollment.",
-                    ),
+	                        f"Peak month: {month_label(story['peak']['reporting_month'])}",
+	                        "Highest observed",
+	                        "peak",
+	                        category="Enrollment level",
+	                    ),
                     kpi_button(
                         "latest",
                         "Latest enrollment",
                         format_value(story["latest_value"]),
                         latest_month,
-                        "Preliminary" if latest_preliminary_status == "Preliminary" else "Latest month",
-                        "latest",
-                        helper="Most recent reporting value.",
-                    ),
+	                        "Preliminary" if latest_preliminary_status == "Preliminary" else "Latest month",
+	                        "latest",
+	                        category="Enrollment level",
+	                    ),
                     kpi_button(
                         "change-baseline",
                         "Change since Jan. 2019",
                         f"{baseline_arrow} {baseline_delta}",
                         f"Percent change: {format_value(story['percent_change_from_baseline'], 'percent')}",
                         "Above baseline" if baseline_direction == "up" else "Below baseline" if baseline_direction == "down" else "At baseline",
-                        f"delta-{baseline_direction}",
-                        percent=format_value(story["percent_change_from_baseline"], "percent"),
-                        helper="Descriptive change from baseline.",
-                    ),
+	                        f"delta-{baseline_direction}",
+	                        percent=format_value(story["percent_change_from_baseline"], "percent"),
+	                        category="Change metric",
+	                    ),
                     kpi_button(
                         "change-peak",
                         "Change from peak",
                         f"{peak_arrow} {peak_delta}",
                         f"Percent change from peak: {format_value(story['percent_change_from_peak'], 'percent')}",
                         "Below peak" if peak_direction == "down" else "Above peak" if peak_direction == "up" else "At peak",
-                        f"delta-{peak_direction}",
-                        percent=format_value(story["percent_change_from_peak"], "percent"),
-                        helper="Change from the observed peak.",
-                    ),
+	                        f"delta-{peak_direction}",
+	                        percent=format_value(story["percent_change_from_peak"], "percent"),
+	                        category="Change metric",
+	                    ),
                     kpi_button(
                         "operations",
-                        "Latest operations activity",
-                        [
-                            html.Span(f"{format_short(totals['applications'])} applications", className="operation-line"),
-                            html.Span(f"{format_short(totals['determinations'])} determinations", className="operation-line"),
-                        ],
-                        latest_month,
-                        "Operations",
-                        "operations",
-                        helper="Applications and determinations; descriptive operations context.",
-                    ),
+	                        "Latest operations activity",
+	                        [
+	                            html.Div([html.Span("Applications submitted"), html.Strong(format_short(totals["applications"]))]),
+	                            html.Div([html.Span("Eligibility determinations"), html.Strong(format_short(totals["determinations"]))]),
+	                        ],
+	                        latest_month,
+	                        "Operations",
+	                        "operations",
+	                        category="Operations context",
+	                    ),
                 ],
             ),
             html.Div(id="national-kpi-details"),
@@ -2469,6 +2497,12 @@ app.layout = html.Div(
 
 @app.callback(
     Output("national-kpi-details", "children"),
+    Output("kpi-baseline", "className"),
+    Output("kpi-peak", "className"),
+    Output("kpi-latest", "className"),
+    Output("kpi-change-baseline", "className"),
+    Output("kpi-change-peak", "className"),
+    Output("kpi-operations", "className"),
     Input("kpi-baseline", "n_clicks"),
     Input("kpi-peak", "n_clicks"),
     Input("kpi-latest", "n_clicks"),
@@ -2478,10 +2512,10 @@ app.layout = html.Div(
 )
 def update_national_kpi_details(*_clicks):
     if not ctx.triggered_id:
-        return []
+        return ([], *kpi_classes_for_selection())
     triggered = ctx.triggered_id
     key = str(triggered).replace("kpi-", "")
-    return metric_details_panel(key)
+    return (metric_details_panel(key), *kpi_classes_for_selection(key))
 
 
 @app.callback(

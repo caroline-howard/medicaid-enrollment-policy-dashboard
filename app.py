@@ -1151,14 +1151,11 @@ def build_overview_tab() -> html.Div:
                                     html.Div(
                                         className="chart-card-header stacked",
                                         children=[
-                                            html.Div(
-                                                children=[
-                                                    html.H2("Indexed Enrollment Trend: Selected State vs National"),
-                                                    html.P(
-                                                        "Compare the selected state’s Medicaid/CHIP enrollment trend with the national trend on the same relative scale."
-                                                    ),
-                                                ]
-                                            ),
+	                                            html.Div(
+	                                                children=[
+	                                                    html.H2("Indexed Enrollment Trend: Selected State vs National"),
+	                                                ]
+	                                            ),
                                         ],
                                     ),
                                     dcc.Graph(
@@ -1174,12 +1171,11 @@ def build_overview_tab() -> html.Div:
                                     html.Div(
                                         className="chart-card-header stacked",
                                         children=[
-                                            html.Div(
-                                                children=[
-                                                    html.H2("State Medicaid/CHIP Enrollment Change Since January 2019"),
-                                                    html.P("Compare state-level enrollment change across the country using the same January 2019 reference point."),
-                                                ]
-                                            ),
+	                                            html.Div(
+	                                                children=[
+	                                                    html.H2("State Medicaid/CHIP Enrollment Change Since January 2019"),
+	                                                ]
+	                                            ),
                                         ],
                                     ),
                                     dcc.Graph(
@@ -1198,28 +1194,28 @@ def build_overview_tab() -> html.Div:
                             html.Div(
                                 className="visual-explainer-grid",
                                 children=[
-                                    html.Div(
-                                        children=[
-                                            html.H4("Line chart"),
-                                            html.P(
-                                                "Both lines start at 100 in January 2019. A value of 110 means enrollment is 10% higher than the January 2019 baseline; a value of 95 means enrollment is 5% lower. This indexing makes the selected state and national trends comparable even though their raw enrollment counts are very different."
-                                            ),
-                                        ],
-                                    ),
-                                    html.Div(
-                                        children=[
-                                            html.H4("Map"),
-                                            html.P(
-                                                "This map shows the percent change in each state’s Medicaid/CHIP enrollment relative to January 2019. It does not show total enrollment counts."
-                                            ),
-                                        ],
-                                    ),
+	                                    html.Div(
+	                                        children=[
+	                                            html.H4("Line chart"),
+	                                            html.P(
+	                                                "Both lines start at 100 in January 2019. Values above 100 are higher than baseline; values below 100 are lower."
+	                                            ),
+	                                        ],
+	                                    ),
+	                                    html.Div(
+	                                        children=[
+	                                            html.H4("Map"),
+	                                            html.P(
+	                                                "The map shows percent change since January 2019, not total enrollment counts."
+	                                            ),
+	                                        ],
+	                                    ),
                                 ],
                             ),
-                            html.P(
-                                "Together, the line chart shows the timing of change for the selected state, while the map shows how that state compares with other states.",
-                                className="visual-explainer-bridge",
-                            ),
+	                            html.P(
+	                                "Use the line chart for timing and the map for state comparison.",
+	                                className="visual-explainer-bridge",
+	                            ),
                         ],
                     ),
                     html.Div(

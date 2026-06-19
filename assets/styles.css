@@ -912,17 +912,17 @@ h3 {
 .policy-timeline {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(8, minmax(120px, 1fr));
-  gap: 8px;
-  margin-bottom: 14px;
-  padding-top: 12px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0 16px;
+  padding: 0 4px;
 }
 
 .policy-timeline::before {
   position: absolute;
-  top: 26px;
-  right: 4px;
-  left: 4px;
+  top: 14px;
+  right: 8px;
+  left: 8px;
   height: 2px;
   background: #d9e4e7;
   content: "";
@@ -930,42 +930,48 @@ h3 {
 
 .timeline-event-button {
   position: relative;
-  min-height: 104px;
-  padding: 16px 10px 10px;
-  background: #f8fafb;
-  border: 1px solid #dce6e8;
-  border-top: 4px solid #2f7d78;
-  border-radius: 8px;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  min-height: 74px;
+  padding: 32px 4px 0;
+  background: transparent;
+  border: 0;
   color: #253746;
   font: inherit;
-  text-align: left;
+  text-align: center;
   cursor: pointer;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+  transition: color 0.15s ease, transform 0.15s ease;
 }
 
 .timeline-event-button::before {
   position: absolute;
-  top: -18px;
-  left: 12px;
-  width: 12px;
-  height: 12px;
+  top: 5px;
+  left: 50%;
+  width: 15px;
+  height: 15px;
   background: #ffffff;
   border: 3px solid #2f7d78;
   border-radius: 999px;
   content: "";
+  transform: translateX(-50%);
 }
 
 .timeline-event-button:hover,
 .timeline-event-button:focus-visible {
-  border-color: #2f7d78;
-  box-shadow: 0 10px 20px rgba(37, 55, 70, 0.1);
+  color: #18534e;
   outline: none;
   transform: translateY(-1px);
 }
 
+.timeline-event-button:hover::before,
+.timeline-event-button:focus-visible::before {
+  background: #2f7d78;
+  box-shadow: 0 0 0 4px rgba(47, 125, 120, 0.15);
+}
+
 .timeline-date {
   display: block;
-  margin-bottom: 5px;
   color: #5d6d78;
   font-size: 0.74rem;
   font-weight: 850;
@@ -974,20 +980,9 @@ h3 {
 
 .timeline-event-button strong {
   display: block;
-  margin-bottom: 8px;
   color: #172832;
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   line-height: 1.25;
-}
-
-.timeline-source-tag {
-  display: inline-block;
-  padding: 3px 6px;
-  background: #edf6f3;
-  border-radius: 999px;
-  color: #18534e;
-  font-size: 0.68rem;
-  font-weight: 850;
 }
 
 .timeline-detail-card {
@@ -1061,7 +1056,7 @@ h3 {
   }
 
   .policy-timeline {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .three-column {

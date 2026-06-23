@@ -1,36 +1,57 @@
 # Dashboard User Guide
 
+This guide explains the current Plotly Dash app structure and intended interpretation. The dashboard is a descriptive public-data monitoring tool, not a causal evaluation or beneficiary-level analysis.
+
 ## National Snapshot
 
-The National Snapshot tab is designed as an executive summary page. It answers the main monitoring question:
+The National Snapshot summarizes the national Medicaid/CHIP enrollment story from January 2019 through the latest available reporting month.
 
-How does the selected state’s Medicaid/CHIP enrollment trend compare with the national trend across the full reporting period?
+Use this section to review:
 
-The page uses National Monitoring Summary KPI cards to show the January 2019 baseline, observed peak, latest reporting month, change since baseline, change from peak, and latest operations activity.
+- baseline, observed peak, latest enrollment, and change from reference points
+- selected-state vs national indexed enrollment trend
+- state map context for enrollment change
+- policy/reporting timeline context for interpreting major trend periods
 
-Clicking a KPI card opens a metric detail panel. On initial load, the KPI cards flow directly into the main chart.
+The indexed trend starts the selected state and national trend at 100 in January 2019. This makes trend shape comparable even though raw enrollment counts differ greatly.
 
-The National Snapshot main visualization pairs two views:
+## State Comparison Explorer
 
-- Indexed Enrollment Trend: Selected State vs National: an indexed line chart where both the selected state and national series start at 100 in January 2019. Values above 100 mean enrollment is higher than the January 2019 baseline, and values below 100 mean enrollment is lower than the baseline.
-- State Medicaid/CHIP Enrollment Change Since January 2019: a supporting U.S. choropleth map showing state-level percent change since January 2019, not current enrollment totals.
+The State Comparison Explorer is a two-state workflow.
 
-These visuals combine time-trend context with state comparison context. Use the line chart to see timing and trajectory, and use the map to compare the selected state with other states. The selected-state dropdown and map click interaction use the same selected state.
+Use this section to:
 
-## Medicaid vs CHIP Drivers
+- choose State A and State B
+- view where selected states rank nationally
+- compare the selected states on key measures
+- review trend-over-time differences
+- explore within-state context through profile tabs
 
-The selected-state Medicaid vs CHIP chart defaults to an indexed view titled “Selected State Medicaid vs CHIP Enrollment, Indexed to Jan. 2019.” In this view, Medicaid and CHIP are both set to 100 at the January 2019 baseline so relative movement can be compared even though Medicaid enrollment is usually much larger than CHIP enrollment.
+Current within-state tabs:
 
-The raw-count option remains available for program size context. Hover text includes the state, reporting month, program component, raw enrollment, indexed value, and reporting status. Indexed values show relative movement, not raw enrollment size.
+- Enrollment trend
+- Eligibility context
+- Fiscal profile
 
-## Methods & Limits
+Eligibility context uses Medicaid.gov State Profiles enrollment/context fields and MAGI eligibility thresholds. It should not be interpreted as full observed enrollee demographic composition.
 
-The Methods & Limits tab is the final documentation tab in the app. It explains the data source, coverage period, geography, state-month grain, appropriate uses, and interpretation limits.
+Fiscal profile uses MBES/CBES fiscal-year expenditure values. These are financial reporting values, not monthly enrollment values.
 
-Data quality review now lives inside Methods & Limits. This section includes missingness by field, missingness by state, missingness by month and preliminary status, excluded fields, population denominator notes, and caveats about public aggregate CMS reporting.
+## Interpretation Guardrails
 
-Use this tab when deciding whether a metric is reliable enough for headline interpretation. Fields such as adult Medicaid enrollment, call center measures, processing-time fields, renewals/redeterminations, and pending applications are not used as headline KPIs because of missingness, reporting variation, or unavailable clean standalone fields.
+- State rankings are descriptive context, not performance ratings.
+- Applications and determinations are operations indicators, not approval rates or backlog measures.
+- Population-adjusted metrics are comparison context, not healthcare utilization rates.
+- Latest-month values may be preliminary.
+- The app does not show individual outcomes, claims, utilization, diagnoses, managed care plan performance, or county-level variation.
+- The app does not estimate causal effects of policy changes.
 
-## Interpretation Limits
+## Deployment Notes
 
-The dashboard supports descriptive monitoring and policy context. It does not estimate causal policy effects, measure beneficiary-level outcomes, or show claims, utilization, costs, diagnoses, access to care, or individual eligibility experiences.
+The app entry point is `app.py`, and the WSGI server object is `server`.
+
+Cloud start command:
+
+```bash
+gunicorn app:server --workers 2 --threads 4 --timeout 120
+```

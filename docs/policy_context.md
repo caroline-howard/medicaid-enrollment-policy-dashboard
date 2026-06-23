@@ -42,21 +42,21 @@ The National Snapshot timeline provides policy and reporting context for major e
 - Interpret as: support for looking at both state-level patterns and national totals.
 - Do not interpret as: direct measurement of churn, uninsured status, re-enrollment, or coverage transitions in this dashboard.
 
-### 2024-2025: Post-Unwinding Stabilization
+### 2024-2025: Renewals, Churn, And Coverage Transitions
 
-- Event: Post-unwinding stabilization period.
-- Explanation: After the initial unwinding period, national and state enrollment trends begin to stabilize, although levels may remain lower than the peak.
-- Source: CMS/Data.Medicaid.gov.
-- Interpret as: context for distinguishing temporary unwinding disruption from a more settled post-renewal pattern.
-- Do not interpret as: evidence that all states stabilized at the same pace or for the same reasons.
+- Event: Renewals, churn, and coverage transitions.
+- Explanation: After states resumed Medicaid renewals and disenrollments, enrollment patterns reflected more than simple coverage loss. Research and policy sources describe the importance of churn, re-enrollment, procedural disenrollments, and transitions to other coverage.
+- Source: McIntyre et al. (2025), KFF, and CMS/Medicaid.gov.
+- Interpret as: a reminder that declining aggregate Medicaid/CHIP enrollment does not directly show who became uninsured, who re-enrolled, or who moved to another coverage source.
+- Do not interpret as: direct dashboard measurement of churn, uninsured status, or coverage transitions.
 
-### 2025-2026: Recent CMS Reporting Period
+### 2025-2026: Latest CMS Reporting Caveats
 
-- Event: Recent CMS reporting period.
-- Explanation: The most recent public CMS enrollment data provide the latest view of national and state Medicaid/CHIP trends, but some values may be preliminary or reported with lag.
-- Source: CMS/Data.Medicaid.gov.
-- Interpret as: a reminder to read recent values with source notes and Methods & Limits, especially when comparing short-term changes.
-- Do not interpret as: final beneficiary-level data or a complete performance assessment.
+- Event: Latest CMS reporting caveats.
+- Explanation: The latest reporting months in public CMS/Data.Medicaid.gov enrollment files may be preliminary or later revised. Some operational fields also have missingness or source caveats.
+- Source: CMS/Data.Medicaid.gov and CMS/Medicaid.gov source notes.
+- Interpret as: guidance to read recent values with reporting status, source notes, and the project limitations documentation.
+- Do not interpret as: final beneficiary-level data, complete operational performance, or direct measurement of access, utilization, or outcomes.
 
 ### A. Medicaid Scale And State Variation
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import importlib.abc
+import os
 import sys
 import types
 from datetime import datetime
@@ -80,6 +81,8 @@ sys.meta_path.remove(_ipython_blocker)
 BASE_DIR = Path(__file__).resolve().parent
 DASHBOARD_DIR = BASE_DIR / "outputs" / "dashboard_tables"
 PROCESSED_DIR = BASE_DIR / "data" / "processed"
+MANUAL_DIR = BASE_DIR / "data" / "manual"
+CONTEXT_DIR = BASE_DIR / "data" / "context"
 
 NOTE_TEXT = (
     "Note: Latest-month data may be preliminary. This dashboard uses public aggregate "
@@ -133,10 +136,53 @@ def format_short(value: str | int | float | None) -> str:
     return f"{sign}{numeric:.0f}"
 
 
+def format_signed_short(value: str | int | float | None) -> str:
+    numeric = to_float(value)
+    if numeric is None:
+        return "n/a"
+    sign = "+" if numeric > 0 else "-" if numeric < 0 else ""
+    return f"{sign}{format_short(abs(numeric)) if numeric != 0 else '0'}"
+
+
+def format_dollars_short(value: str | int | float | None) -> str:
+    numeric = to_float(value)
+    if numeric is None:
+        return "Not available"
+    sign = "-" if numeric < 0 else ""
+    numeric = abs(numeric)
+    if numeric >= 1_000_000_000:
+        return f"{sign}${numeric / 1_000_000_000:.1f}B"
+    if numeric >= 1_000_000:
+        return f"{sign}${numeric / 1_000_000:.1f}M"
+    if numeric >= 1_000:
+        return f"{sign}${numeric / 1_000:.0f}K"
+    return f"{sign}${numeric:,.0f}"
+
+
 def month_label(value: str) -> str:
     if not value:
         return "Not available"
     return datetime.strptime(value[:10], "%Y-%m-%d").strftime("%B %Y")
+
+
+def short_month_label(value: str) -> str:
+    if not value:
+        return "Not available"
+    month = datetime.strptime(value[:10], "%Y-%m-%d").strftime("%b")
+    month = {
+        "Jan": "Jan.",
+        "Feb": "Feb.",
+        "Mar": "Mar.",
+        "Apr": "Apr.",
+        "Jun": "Jun.",
+        "Jul": "Jul.",
+        "Aug": "Aug.",
+        "Sep": "Sep.",
+        "Oct": "Oct.",
+        "Nov": "Nov.",
+        "Dec": "Dec.",
+    }.get(month, month)
+    return f"{month} {datetime.strptime(value[:10], '%Y-%m-%d').strftime('%Y')}"
 
 
 def sorted_states(rows: list[dict[str, str]]) -> list[dict[str, str]]:
@@ -168,15 +214,50 @@ peak_change_rows = read_rows(DASHBOARD_DIR / "enrollment_change_from_peak.csv")
 monitoring_flag_rows = read_rows(DASHBOARD_DIR / "monitoring_review_flags.csv")
 state_monitoring_rows = read_rows(DASHBOARD_DIR / "state_monitoring_summary.csv")
 national_monitoring_rows = read_rows(DASHBOARD_DIR / "national_monitoring_summary.csv")
+state_context_rows = read_rows(MANUAL_DIR / "state_demographic_context_candidates.csv")
+state_expenditure_rows = read_rows(MANUAL_DIR / "state_expenditure_context_candidates.csv")
+medicaid_fmap_rows = read_rows(CONTEXT_DIR / "kff_medicaid_fmap_multiplier.csv")
+chip_efmap_rows = read_rows(CONTEXT_DIR / "kff_chip_efmap.csv")
+chip_structure_rows = read_rows(CONTEXT_DIR / "chip_program_structure.csv")
 
 state_lookup = {row["state_abbreviation"]: row for row in state_rows}
 DEFAULT_OVERVIEW_STATE = "FL" if "FL" in state_lookup else sorted_states(state_rows)[0]["value"]
+DEFAULT_STATE_A = "AR" if "AR" in state_lookup else DEFAULT_OVERVIEW_STATE
+DEFAULT_STATE_B = "CA" if "CA" in state_lookup and "CA" != DEFAULT_STATE_A else next(
+    row["value"] for row in sorted_states(state_rows) if row["value"] != DEFAULT_STATE_A
+)
 state_map_lookup = {row["state_abbreviation"]: row for row in state_map_rows}
 latest_balance_lookup = {row["state_abbreviation"]: row for row in latest_balance_rows}
 peak_lookup = {row["state_abbreviation"]: row for row in peak_change_rows}
 state_monitoring_lookup = {
     row["state_abbreviation"]: row for row in state_monitoring_rows
 }
+state_context_lookup: dict[str, dict[str, dict[str, str]]] = {}
+for row in state_context_rows:
+    state_context_lookup.setdefault(row["state_abbr"], {})[row["demographic_subcategory"]] = row
+state_expenditure_lookup: dict[str, list[dict[str, str]]] = {}
+for row in state_expenditure_rows:
+    state_expenditure_lookup.setdefault(row["state_abbr"], []).append(row)
+for rows in state_expenditure_lookup.values():
+    rows.sort(key=lambda row: (row["fiscal_year"], row["program_category"], row["expenditure_category"]))
+FISCAL_YEAR_VALUES = sorted(
+    {row["fiscal_year"] for row in state_expenditure_rows if row.get("fiscal_year")},
+    key=lambda value: int(value),
+)
+LATEST_FISCAL_YEAR_VALUE = FISCAL_YEAR_VALUES[-1] if FISCAL_YEAR_VALUES else "2024"
+medicaid_fmap_lookup = {
+    (row["state_abbr"], row["fiscal_year"]): row for row in medicaid_fmap_rows
+}
+chip_efmap_lookup = {
+    (row["state_abbr"], row["fiscal_year"]): row for row in chip_efmap_rows
+}
+chip_structure_lookup = {
+    row["state_abbr"]: row for row in chip_structure_rows
+}
+FINANCING_FISCAL_YEAR = max(
+    set(row["fiscal_year"] for row in medicaid_fmap_rows)
+    & set(row["fiscal_year"] for row in chip_efmap_rows)
+) if medicaid_fmap_rows and chip_efmap_rows else LATEST_FISCAL_YEAR_VALUE
 state_month_lookup: dict[str, list[dict[str, str]]] = {}
 for row in state_month_rows:
     state_month_lookup.setdefault(row["state_abbreviation"], []).append(row)
@@ -193,6 +274,34 @@ MONTH_INDEX_BY_VALUE = {value: index for index, value in enumerate(MONTH_VALUES)
 LATEST_MONTH_VALUE = MONTH_VALUES[-1]
 BASELINE_MONTH = "2019-01-01"
 POST_PEAK_CONTEXT_MONTH = "2023-04-01"
+RELIABLE_MISSINGNESS_THRESHOLD = 5.0
+
+quality_month_lookup = {row["reporting_month"]: row for row in quality_month_rows}
+
+
+def month_quality_metrics(reporting_month: str) -> dict[str, object]:
+    row = quality_month_lookup.get(reporting_month, {})
+    missingness = to_float(row.get("missing_value_percent"))
+    preliminary_records = int(row.get("preliminary_records") or 0) if row else 0
+    is_preliminary = preliminary_records > 0 or str(row.get("all_records_final", "")).lower() == "false"
+    elevated_missingness = missingness is not None and missingness > RELIABLE_MISSINGNESS_THRESHOLD
+    return {
+        "reporting_month": reporting_month,
+        "missingness_percent": missingness,
+        "is_preliminary": is_preliminary,
+        "elevated_missingness": elevated_missingness,
+    }
+
+
+def latest_reliable_month_value() -> str:
+    for month in reversed(MONTH_VALUES):
+        quality = month_quality_metrics(month)
+        if not quality["is_preliminary"] and not quality["elevated_missingness"]:
+            return month
+    return LATEST_MONTH_VALUE
+
+
+LATEST_RELIABLE_MONTH_VALUE = latest_reliable_month_value()
 
 latest_month = month_label(state_rows[0]["latest_reporting_month"])
 population_year = state_rows[0]["population_denominator_year"]
@@ -308,6 +417,28 @@ MAP_METRICS = {
         "subtitle": "descriptive post-peak context metric",
     },
 }
+
+MAP_EXPLORER_METRIC_KEYS = [
+    "latest_total_medicaid_chip_enrollment",
+    "latest_medicaid_enrollment",
+    "latest_chip_enrollment",
+    "medicaid_chip_enrollment_per_1000_residents",
+    "percent_change_since_january_2019",
+    "change_since_april_2023",
+    "last_12_month_change",
+    "applications_submitted_per_100000_residents",
+    "eligibility_determinations_per_100000_residents",
+    "applications_per_1000_enrollees",
+    "determinations_per_1000_enrollees",
+]
+
+TWO_STATE_COMPARISON_METRIC_KEYS = [
+    "medicaid_chip_enrollment_per_1000_residents",
+    "percent_change_since_january_2019",
+    "applications_submitted_per_100000_residents",
+]
+
+RANK_STRIP_METRIC_KEY = "medicaid_chip_enrollment_per_1000_residents"
 
 
 def line_figure(
@@ -453,6 +584,13 @@ def card(label: str, value: str, note: str = "") -> html.Div:
     )
 
 
+def kpi_footer(*lines: str) -> html.Div:
+    return html.Div(
+        className="kpi-footer-stack",
+        children=[html.Span(line) for line in lines if line],
+    )
+
+
 KPI_DETAILS = {
     "baseline": {
         "title": "Baseline enrollment",
@@ -465,7 +603,7 @@ KPI_DETAILS = {
     "peak": {
         "title": "Peak enrollment",
         "measures": "The highest observed national total Medicaid/CHIP enrollment month in the cleaned dashboard dataset.",
-        "matters": "The observed high point helps viewers understand the scale of enrollment reached during the available reporting period and frames later declines or stabilization.",
+        "matters": "The observed high point helps viewers understand the scale of enrollment reached during the available reporting period and frames later declines, renewals, and coverage transitions described in unwinding context sources.",
         "interpret": "If latest enrollment is below this point, the dashboard is showing a descriptive shift away from the observed high-water mark in the cleaned data.",
         "caution": "Highest observed enrollment is descriptive. It does not explain why enrollment changed or estimate any policy effect.",
         "related": "National Snapshot, State Map Explorer, Methods & Limits",
@@ -522,7 +660,7 @@ def kpi_class(key: str, selected_key: str | None = None, variant: str | None = N
     return " ".join(classes)
 
 
-def kpi_classes_for_selection(selected_key: str | None = None) -> tuple[str, str, str, str, str, str]:
+def kpi_classes_for_selection(selected_key: str | None = None) -> tuple[str, str, str, str, str]:
     story = national_enrollment_story()
     _, _, baseline_direction = signed_delta_parts(story["change_from_baseline"])
     _, _, peak_direction = signed_delta_parts(story["change_from_peak"])
@@ -532,7 +670,6 @@ def kpi_classes_for_selection(selected_key: str | None = None) -> tuple[str, str
         kpi_class("latest", selected_key, "latest"),
         kpi_class("change-baseline", selected_key, f"delta-{baseline_direction}"),
         kpi_class("change-peak", selected_key, f"delta-{peak_direction}"),
-        kpi_class("operations", selected_key, "operations"),
     )
 
 
@@ -574,22 +711,22 @@ TIMELINE_EVENTS = [
         "source": "McIntyre et al. (2025)",
     },
     {
-        "key": "stabilization",
+        "key": "renewals",
         "period": "2024-2025",
-        "label": "Post-unwinding stabilization",
-        "title": "Post-unwinding stabilization period",
-        "context": "After the initial unwinding period, national and state enrollment trends begin to stabilize, although levels may remain lower than the peak.",
-        "matters": "This period helps distinguish temporary unwinding disruption from a more settled post-renewal pattern.",
-        "source": "CMS/Data.Medicaid.gov",
+        "label": "Renewals and churn",
+        "title": "Renewals, churn, and coverage transitions",
+        "context": "After states resumed Medicaid renewals and disenrollments, enrollment patterns reflected more than simple coverage loss. Research and policy sources describe the importance of churn, re-enrollment, procedural disenrollments, and transitions to other coverage.",
+        "matters": "A decline in aggregate Medicaid/CHIP enrollment does not directly show who became uninsured, who re-enrolled, or who moved to another coverage source. Users should interpret state trends alongside unwinding and renewal context.",
+        "source": "McIntyre et al. (2025) / KFF / CMS/Medicaid.gov",
     },
     {
-        "key": "recent",
+        "key": "reporting",
         "period": "2025-2026",
-        "label": "Recent reporting",
-        "title": "Recent CMS reporting period",
-        "context": "The most recent public CMS enrollment data provide the latest view of national and state Medicaid/CHIP trends, but some values may be preliminary or reported with lag.",
-        "matters": "Recent values should be interpreted with source notes and Methods & Limits, especially when comparing short-term changes.",
-        "source": "CMS/Data.Medicaid.gov",
+        "label": "CMS reporting caveats",
+        "title": "Latest CMS reporting caveats",
+        "context": "The latest reporting months in public CMS/Data.Medicaid.gov enrollment files may be preliminary or later revised. Some operational fields also have missingness or source caveats.",
+        "matters": "Recent values are useful for monitoring, but they should be interpreted with reporting status, source notes, and Methods & Limits. The dashboard shows aggregate enrollment and eligibility operations, not individual coverage transitions, access to care, utilization, or outcomes.",
+        "source": "CMS/Data.Medicaid.gov / CMS/Medicaid.gov source notes",
     },
 ]
 
@@ -628,8 +765,6 @@ def timeline_detail(event: dict[str, str]) -> html.Div:
                 className="timeline-detail-meta",
                 children=[
                     html.Span(f"Event: {event['title']}"),
-                    html.Span(f"Period: {event['period']}"),
-                    html.Span(f"Source: {event['source']}"),
                 ],
             ),
             html.P([html.Strong("Context: "), event["context"]]),
@@ -642,15 +777,13 @@ def kpi_button(
     key: str,
     title: str,
     value: str | list,
-    footer: str,
+    footer: str | Component | None,
     badge: str | None = None,
     variant: str = "neutral",
     delta: str | None = None,
     percent: str | None = None,
-    category: str | None = None,
 ) -> html.Button:
     children = [
-        html.Span(category, className="kpi-category") if category else None,
         html.Div(
             className="kpi-topline",
             children=[
@@ -668,7 +801,7 @@ def kpi_button(
         )
         if delta or percent
         else None,
-        html.Small(footer),
+        html.Small(footer) if isinstance(footer, str) and footer else footer,
     ]
     return html.Button(
         id=f"kpi-{key}",
@@ -687,16 +820,14 @@ def metric_details_panel(key: str = "total") -> html.Div:
                 children=[
                     html.P("Metric details", className="eyebrow"),
                     html.H3(detail["title"]),
-                    html.P("Click another summary card to change this explanation.", className="detail-hint"),
                 ]
             ),
             html.Div(
                 className="metric-detail-grid",
                 children=[
-                    html.Div([html.Span("What this means"), html.P(detail["measures"]), html.P(detail["interpret"])]),
+                    html.Div([html.Span("Metric details"), html.P(detail["measures"])]),
+                    html.Div([html.Span("What this means"), html.P(detail["interpret"])]),
                     html.Div([html.Span("Why it matters"), html.P(detail["matters"])]),
-                    html.Div([html.Span("Use caution"), html.P(detail["caution"])]),
-                    html.Div([html.Span("Related dashboard views"), html.P(detail["related"])]),
                 ],
             ),
         ],
@@ -1016,33 +1147,41 @@ def selected_state_takeaway(selected_state: str = DEFAULT_OVERVIEW_STATE) -> htm
     selected = state_lookup[selected_state]
     rows = indexed_state_national_rows(selected_state)
     latest = rows[-1] if rows else {}
+    baseline = rows[0] if rows else {}
     state_latest_index = to_float(latest.get("state_index"))
     national_latest_index = to_float(latest.get("national_index"))
+    latest_raw = to_float(latest.get("state_raw"))
+    baseline_raw = to_float(baseline.get("state_raw"))
+    raw_change = latest_raw - baseline_raw if latest_raw is not None and baseline_raw is not None else None
     diff = state_latest_index - national_latest_index if state_latest_index is not None and national_latest_index is not None else None
     comparison = "near the national indexed trend"
     if diff is not None and diff > 0.5:
         comparison = "above the national indexed trend"
     elif diff is not None and diff < -0.5:
         comparison = "below the national indexed trend"
-    percent_change = to_float(state_map_lookup.get(selected_state, {}).get("map_percent_change_since_2019"))
-    direction = "changed"
-    if percent_change is not None and percent_change > 0:
-        direction = "rose above"
-    elif percent_change is not None and percent_change < 0:
-        direction = "fell below"
+    baseline_comparison = "near its January 2019 level"
+    if raw_change is not None and raw_change > 0:
+        baseline_comparison = "above its January 2019 level"
+    elif raw_change is not None and raw_change < 0:
+        baseline_comparison = "below its January 2019 level"
     return html.Div(
         className="selected-state-takeaway",
         children=[
-            html.H3("Selected state takeaway"),
-            html.P(
-                f"{selected['state_name']}'s Medicaid/CHIP enrollment {direction} its January 2019 baseline by the latest reporting month and is {comparison}."
+            html.Div(
+                className="takeaway-summary",
+                children=[
+                    html.H3(f"{selected['state_name']} takeaway"),
+                    html.P(
+                        f"{selected['state_name']} is {baseline_comparison} and {comparison} in the latest reporting month."
+                    ),
+                ],
             ),
             html.Div(
                 className="takeaway-metrics",
                 children=[
-                    html.Span(f"State latest index: {format_value(state_latest_index, 'decimal')}"),
-                    html.Span(f"National latest index: {format_value(national_latest_index, 'decimal')}"),
-                    html.Span(f"State change since Jan. 2019: {format_value(percent_change, 'percent')}"),
+                    html.Span(f"Latest enrollment: {format_short(latest_raw)}"),
+                    html.Span(f"Jan. 2019 enrollment: {format_short(baseline_raw)}"),
+                    html.Span(f"Change since Jan. 2019: {format_signed_short(raw_change)}"),
                 ],
             ),
         ],
@@ -1149,10 +1288,9 @@ def flag_type_options() -> list[dict[str, str]]:
 
 
 def build_overview_tab() -> html.Div:
-    totals = current_national_totals()
     story = national_enrollment_story()
-    baseline_arrow, baseline_delta, baseline_direction = signed_delta_parts(story["change_from_baseline"])
-    peak_arrow, peak_delta, peak_direction = signed_delta_parts(story["change_from_peak"])
+    _, _, baseline_direction = signed_delta_parts(story["change_from_baseline"])
+    _, _, peak_direction = signed_delta_parts(story["change_from_peak"])
     return html.Div(
         className="tab-page",
         children=[
@@ -1168,7 +1306,7 @@ def build_overview_tab() -> html.Div:
                         className="section-title-row",
                         children=[
 	                            html.H2("National Monitoring Summary"),
-	                            html.Span("Click any card for interpretation.", className="instruction-pill"),
+	                            html.Span("Click any card for details.", className="instruction-pill"),
                         ],
                     ),
                 ],
@@ -1179,61 +1317,49 @@ def build_overview_tab() -> html.Div:
 	                    kpi_button(
 	                        "baseline",
 	                        "Baseline enrollment",
-	                        format_value(story["baseline_value"]),
-	                        month_label(story["baseline"]["reporting_month"]),
-	                        "Starting point",
-	                        "baseline",
-	                        category="Enrollment level",
+	                        format_short(story["baseline_value"]),
+	                        kpi_footer(
+                                short_month_label(story["baseline"]["reporting_month"]),
+                                "Starting point for comparison",
+                            ),
+	                        variant="baseline",
 	                    ),
                     kpi_button(
                         "peak",
                         "Peak enrollment",
-                        format_value(story["peak_value"]),
-	                        f"Peak month: {month_label(story['peak']['reporting_month'])}",
-	                        "Highest observed",
-	                        "peak",
-	                        category="Enrollment level",
+                        format_short(story["peak_value"]),
+	                        kpi_footer(
+                                short_month_label(story["peak"]["reporting_month"]),
+                                "Highest observed level",
+                            ),
+	                        variant="peak",
 	                    ),
                     kpi_button(
                         "latest",
                         "Latest enrollment",
-                        format_value(story["latest_value"]),
-                        latest_month,
-	                        "Preliminary" if latest_preliminary_status == "Preliminary" else "Latest month",
-	                        "latest",
-	                        category="Enrollment level",
+                        format_short(story["latest_value"]),
+                        kpi_footer(
+                            short_month_label(story["latest"]["reporting_month"]),
+                            "Most recent reported value",
+                        ),
+	                        "Preliminary" if latest_preliminary_status == "Preliminary" else None,
+	                        variant="latest",
 	                    ),
                     kpi_button(
                         "change-baseline",
                         "Change since Jan. 2019",
-                        f"{baseline_arrow} {baseline_delta}",
-                        f"Percent change: {format_value(story['percent_change_from_baseline'], 'percent')}",
-                        "Above baseline" if baseline_direction == "up" else "Below baseline" if baseline_direction == "down" else "At baseline",
-	                        f"delta-{baseline_direction}",
+                        format_signed_short(story["change_from_baseline"]),
+	                        "Compared with baseline",
+                        variant=f"delta-{baseline_direction}",
 	                        percent=format_value(story["percent_change_from_baseline"], "percent"),
-	                        category="Change metric",
 	                    ),
                     kpi_button(
                         "change-peak",
                         "Change from peak",
-                        f"{peak_arrow} {peak_delta}",
-                        f"Percent change from peak: {format_value(story['percent_change_from_peak'], 'percent')}",
-                        "Below peak" if peak_direction == "down" else "Above peak" if peak_direction == "up" else "At peak",
-	                        f"delta-{peak_direction}",
+                        format_signed_short(story["change_from_peak"]),
+	                        "Compared with peak level",
+                        variant=f"delta-{peak_direction}",
 	                        percent=format_value(story["percent_change_from_peak"], "percent"),
-	                        category="Change metric",
-	                    ),
-                    kpi_button(
-                        "operations",
-	                        "Latest operations activity",
-	                        [
-	                            html.Div([html.Span("Applications submitted"), html.Strong(format_short(totals["applications"]))]),
-	                            html.Div([html.Span("Eligibility determinations"), html.Strong(format_short(totals["determinations"]))]),
-	                        ],
-	                        latest_month,
-	                        "Operations",
-	                        "operations",
-	                        category="Operations context",
 	                    ),
                 ],
             ),
@@ -1247,7 +1373,6 @@ def build_overview_tab() -> html.Div:
                             html.Div(
                                 children=[
                                     html.H2("Enrollment Trend and State Context"),
-                                    html.P("The state selector controls both visuals: the indexed trend line and the choropleth outline."),
                                 ],
                             ),
                             html.Div(
@@ -1280,15 +1405,20 @@ def build_overview_tab() -> html.Div:
                             html.Div(
                                 className="visual-guide-step trend-step",
                                 children=[
-                                    html.Span("1", className="guide-step-number"),
-                                    html.Div([html.Strong("Trend over time"), html.P("Compare the selected state with the national Medicaid/CHIP enrollment index.")]),
+                                    html.Span("Trend", className="guide-step-label"),
+                                    html.H3("Trend view"),
+                                    html.P("Use the indexed line chart to compare the selected state with the national Medicaid/CHIP trend over time."),
+                                    html.Span("Indexed trend", className="guide-step-pill"),
                                 ],
                             ),
+                            html.Div("Then compare", className="guide-connector"),
                             html.Div(
                                 className="visual-guide-step map-step",
                                 children=[
-                                    html.Span("2", className="guide-step-number"),
-                                    html.Div([html.Strong("State context"), html.P("Use the map to compare each state's percent change since January 2019.")]),
+                                    html.Span("Map", className="guide-step-label"),
+                                    html.H3("State context"),
+                                    html.P("Use the map to see how the selected state compares with other states on enrollment change since January 2019."),
+                                    html.Span("State comparison", className="guide-step-pill"),
                                 ],
                             ),
                         ],
@@ -1304,7 +1434,7 @@ def build_overview_tab() -> html.Div:
                                         children=[
                                             html.Div(
                                                 children=[
-                                                    html.H2("Selected State vs National Enrollment Trend"),
+                                                    html.H2("Indexed Enrollment Trend: Selected State vs National"),
                                                     html.P("Indexed to Jan. 2019 = 100"),
                                                 ]
                                             ),
@@ -1325,7 +1455,7 @@ def build_overview_tab() -> html.Div:
                                         children=[
                                             html.Div(
                                                 children=[
-                                                    html.H2("State Medicaid/CHIP Enrollment Change Since Jan. 2019"),
+                                                    html.H2("State Medicaid/CHIP Enrollment Change Since January 2019"),
                                                     html.P(
                                                         "Outline = selected state. Color = percent change since Jan. 2019.",
                                                         className="map-selection-note",
@@ -1342,40 +1472,15 @@ def build_overview_tab() -> html.Div:
                                 ],
                             ),
                         ],
-	                    ),
-                    html.Div(id="selected-state-takeaway", children=selected_state_takeaway(DEFAULT_OVERVIEW_STATE)),
+                    ),
                     html.Div(
-                        className="visual-explainer combined-visual-explainer",
-                        children=[
-                            html.H3("How to read these visuals"),
-                            html.Div(
-                                className="visual-explainer-grid three-up",
-                                children=[
-                                    html.Div(
-                                        children=[
-                                            html.H4("Line chart"),
-                                            html.P("100 = January 2019 baseline. Values above 100 are higher than baseline; values below 100 are lower."),
-                                        ],
-                                    ),
-                                    html.Div(
-                                        children=[
-                                            html.H4("Map"),
-                                            html.P("Color shows percent change in Medicaid/CHIP enrollment since January 2019. It does not show total enrollment counts."),
-                                        ],
-                                    ),
-                                    html.Div(
-                                        children=[
-                                            html.H4("Use together"),
-                                            html.P("The line chart shows timing of change for the selected state; the map shows how that state compares with others."),
-                                        ],
-                                    ),
-	                                ],
-	                            ),
-                        ],
+                        id="selected-state-takeaway",
+                        children=selected_state_takeaway(DEFAULT_OVERVIEW_STATE),
                     ),
                     html.Div(
                         className="trend-context-block",
                         children=[
+                            html.Span("Policy context", className="context-label"),
                             html.H3("Policy timeline for Medicaid/CHIP enrollment trends"),
                             html.P(
                                 "Click a period to view policy and reporting context related to the enrollment trend.",
@@ -1399,17 +1504,7 @@ def build_overview_tab() -> html.Div:
 
 
 def map_title(metric_key: str, reporting_month: str) -> tuple[str, str]:
-    metric = MAP_METRICS[metric_key]
-    if "per_1000_residents" in metric_key or "per_100000_residents" in metric_key:
-        subtitle = (
-            f"Map color represents {month_label(reporting_month)} {metric['label'].lower()} "
-            f"using {population_year} state population denominators."
-        )
-    elif metric_key in {"percent_change_since_january_2019", "last_12_month_change", "change_since_april_2023"}:
-        subtitle = f"Map color represents {metric['label'].lower()} as of {month_label(reporting_month)}."
-    else:
-        subtitle = f"Map color represents {month_label(reporting_month)} {metric['label'].lower()}."
-    return f"State choropleth: {metric['label']}", subtitle
+    return "Selected states locator map", f"Geographic context for the selected comparison states in {month_label(reporting_month)}."
 
 
 def build_hover(row: dict[str, object], metric_key: str) -> str:
@@ -1429,192 +1524,1615 @@ def build_hover(row: dict[str, object], metric_key: str) -> str:
     )
 
 
-def build_map(metric_key: str, selected_state: str, reporting_month: str) -> go.Figure:
-    metric = MAP_METRICS[metric_key]
-    rows = map_rows_for_month(reporting_month, metric_key)
-    fig = go.Figure(
-        go.Choropleth(
-            locations=[row["state_abbreviation"] for row in rows],
-            z=[row.get("metric_value") for row in rows],
-            locationmode="USA-states",
-            colorscale=metric["scale"],
-            colorbar={"title": metric["short"]},
-            text=[build_hover(row, metric_key) for row in rows],
-            customdata=[row["state_abbreviation"] for row in rows],
-            hovertemplate="%{text}<extra></extra>",
-            marker_line_color="white",
-            marker_line_width=0.8,
-        )
+def ranked_metric_rows(reporting_month: str, metric_key: str) -> list[dict[str, object]]:
+    return sorted(
+        [row for row in map_rows_for_month(reporting_month, metric_key) if row.get("metric_value") is not None],
+        key=lambda row: row.get("metric_value") or 0,
+        reverse=True,
     )
-    if selected_state in state_lookup:
+
+
+def selected_state_metric_rank(metric_key: str, reporting_month: str, selected_state: str) -> tuple[int | None, int]:
+    ranked = ranked_metric_rows(reporting_month, metric_key)
+    for index, row in enumerate(ranked, start=1):
+        if row["state_abbreviation"] == selected_state:
+            return index, len(ranked)
+    return None, len(ranked)
+
+
+def ranking_title(metric_key: str, ranking_view: str) -> str:
+    metric_label = map_metric_dropdown_label(metric_key)
+    if ranking_view == "top10":
+        return f"National Ranking<br><sup>Top states by {metric_label.lower()}</sup>"
+    if ranking_view == "bottom10":
+        return f"National Ranking<br><sup>Bottom states by {metric_label.lower()}</sup>"
+    return f"National Ranking<br><sup>All states by {metric_label.lower()}</sup>"
+
+
+def map_metric_dropdown_label(metric_key: str) -> str:
+    labels = {
+        "latest_total_medicaid_chip_enrollment": "Total enrollment",
+        "latest_medicaid_enrollment": "Medicaid enrollment",
+        "latest_chip_enrollment": "CHIP enrollment",
+        "medicaid_chip_enrollment_per_1000_residents": "Enrollment per 1,000 residents",
+        "percent_change_since_january_2019": "Percent change since Jan. 2019",
+        "change_since_april_2023": "Change since Apr. 2023",
+        "last_12_month_change": "Last 12-month change",
+        "applications_submitted_per_100000_residents": "Applications per 100,000 residents",
+        "eligibility_determinations_per_100000_residents": "Determinations per 100,000 residents",
+        "applications_per_1000_enrollees": "Applications per 1,000 enrollees",
+        "determinations_per_1000_enrollees": "Determinations per 1,000 enrollees",
+    }
+    return labels.get(metric_key, MAP_METRICS[metric_key]["label"])
+
+
+def difference_summary_text(metric_key: str, reporting_month: str, state_a: str, state_b: str) -> str:
+    metric = MAP_METRICS[metric_key]
+    value_a = month_metric_value(state_a, reporting_month, metric_key)
+    value_b = month_metric_value(state_b, reporting_month, metric_key)
+    diff = (value_b - value_a) if value_a is not None and value_b is not None else None
+    if diff is None or abs(diff) < 1e-9:
+        return f"Both states have the same value in {month_label(reporting_month)}."
+    unit_phrase = {
+        "medicaid_chip_enrollment_per_1000_residents": " per 1,000 residents",
+        "percent_change_since_january_2019": " percentage points",
+        "applications_submitted_per_100000_residents": " per 100,000 residents",
+        "eligibility_determinations_per_100000_residents": " per 100,000 residents",
+    }.get(metric_key, "")
+    diff_text = f"{abs(diff):,.1f}{unit_phrase}"
+    if diff > 0:
+        return (
+            f"{state_lookup[state_b]['state_name']} is +{diff_text} "
+            f"higher than {state_lookup[state_a]['state_name']} in {month_label(reporting_month)}."
+        )
+    return (
+        f"{state_lookup[state_a]['state_name']} is +{diff_text} "
+        f"higher than {state_lookup[state_b]['state_name']} in {month_label(reporting_month)}."
+    )
+
+
+def comparison_month_status(reporting_month: str) -> html.Div:
+    return html.Div(className="comparison-month-status")
+
+
+def compare_trend_figure(metric_key: str, state_a: str, state_b: str, reporting_month: str) -> go.Figure:
+    metric = MAP_METRICS[metric_key]
+    series = []
+    for state_key, color, dash in ((state_a, "#b8860b", "solid"), (state_b, "#4f5fbf", "solid")):
+        rows = []
+        for month in MONTH_VALUES:
+            value = month_metric_value(state_key, month, metric_key)
+            rank, total = selected_state_metric_rank(metric_key, month, state_key)
+            rows.append({
+                "reporting_month": month,
+                "metric_value": value,
+                "rank": rank,
+                "total": total,
+                "state_name": state_lookup[state_key]["state_name"],
+            })
+        series.append((state_key, color, dash, rows))
+    fig = go.Figure()
+    for state_key, color, dash, rows in series:
         fig.add_trace(
-            go.Scattergeo(
-                locations=[selected_state],
-                locationmode="USA-states",
-                text=[selected_state],
-                mode="text",
-                textfont={"size": 12, "color": "#111827"},
-                hoverinfo="skip",
-                showlegend=False,
+            go.Scatter(
+                x=[row["reporting_month"] for row in rows],
+                y=[row["metric_value"] for row in rows],
+                mode="lines",
+                name=state_lookup[state_key]["state_name"],
+                line={"color": color, "width": 3, "dash": dash},
+                customdata=[[row["state_name"], row["rank"], row["total"]] for row in rows],
+                hovertemplate=(
+                    "State: %{customdata[0]}<br>"
+                    "Month: %{x|%b %Y}<br>"
+                    f"Value: %{{y:,.1f}}<br>"
+                    "Rank: %{customdata[1]} of %{customdata[2]}<extra></extra>"
+                ),
             )
         )
+        latest_valid = [(row["reporting_month"], row["metric_value"]) for row in rows if row["metric_value"] is not None]
+        if latest_valid:
+            latest_x, latest_y = latest_valid[-1]
+            fig.add_annotation(
+                x=latest_x,
+                y=latest_y,
+                text=f"{state_lookup[state_key]['state_name']}: {format_value(latest_y, metric['kind'])}",
+                showarrow=False,
+                xanchor="left",
+                xshift=8,
+                font={"size": 11, "color": color},
+                bgcolor="rgba(255,255,255,0.88)",
+                bordercolor=color,
+                borderwidth=1,
+            )
+    preliminary_months = [month for month in MONTH_VALUES if month_quality_metrics(month)["is_preliminary"]]
+    if preliminary_months:
+        fig.add_vrect(
+            x0=preliminary_months[0],
+            x1=MONTH_VALUES[-1],
+            fillcolor="#f6d58b",
+            opacity=0.12,
+            line_width=0,
+            layer="below",
+        )
+        fig.add_annotation(
+            x=preliminary_months[0],
+            y=1,
+            xref="x",
+            yref="paper",
+            text="Preliminary reporting window",
+            showarrow=False,
+            xanchor="left",
+            yanchor="bottom",
+            yshift=6,
+            font={"size": 11, "color": "#7a5a00"},
+            bgcolor="rgba(255,249,230,0.96)",
+            bordercolor="#e6c96b",
+            borderwidth=1,
+        )
     fig.update_layout(
-        geo={"scope": "usa", "bgcolor": "rgba(0,0,0,0)", "lakecolor": "#f8fafc"},
-        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        title={
+            "text": (
+                "Enrollment trend over time<br>"
+                f"<sup>{state_lookup[state_a]['state_name']} and {state_lookup[state_b]['state_name']} · "
+                f"{map_metric_dropdown_label(metric_key)} · {month_label(reporting_month)}</sup>"
+            )
+        },
+        margin={"l": 58, "r": 84, "t": 72, "b": 40},
+        height=320,
         paper_bgcolor="white",
         plot_bgcolor="white",
+        hovermode="x unified",
+        legend={"orientation": "h", "y": -0.24},
+        xaxis={"title": "Reporting month", "showgrid": True, "gridcolor": "#e8eef0", "range": [MONTH_VALUES[0], MONTH_VALUES[-1]]},
+        yaxis={"title": metric["short"], "showgrid": True, "gridcolor": "#eef2f3"},
     )
     return fig
 
 
-def build_state_profile(selected_state: str, reporting_month: str) -> html.Div:
-    row = state_lookup.get(selected_state, state_rows[0])
-    month_row = row_for_state_month(row["state_abbreviation"], reporting_month) or row_for_state_month(row["state_abbreviation"], LATEST_MONTH_VALUE) or {}
-    peak = peak_lookup.get(row["state_abbreviation"], {})
-    balance = latest_balance_lookup.get(row["state_abbreviation"], {})
-    medicaid = to_float(month_row.get("total_medicaid_enrollment"))
-    chip = to_float(month_row.get("total_chip_enrollment"))
-    total = to_float(month_row.get("total_medicaid_and_chip_enrollment"))
-    medicaid_share = ratio(medicaid, total, 100)
-    chip_share = ratio(chip, total, 100)
-    fields = [
-        ("Reporting month", month_label(reporting_month)),
-        ("Total Medicaid/CHIP enrollment", format_value(total)),
-        ("Enrollment per 1,000 residents", format_value(month_metric_value(row["state_abbreviation"], reporting_month, "medicaid_chip_enrollment_per_1000_residents"), "decimal")),
-        ("Medicaid enrollment", format_value(medicaid)),
-        ("CHIP enrollment", format_value(chip)),
-        ("Medicaid share of combined enrollment", format_value(medicaid_share, "percent")),
-        ("CHIP share of combined enrollment", format_value(chip_share, "percent")),
-        ("Change since January 2019", format_value(month_metric_value(row["state_abbreviation"], reporting_month, "latest_total_medicaid_chip_enrollment") - (to_float((row_for_state_month(row["state_abbreviation"], BASELINE_MONTH) or {}).get("total_medicaid_and_chip_enrollment")) or 0), "signed_integer") if total is not None else "Not available"),
-        ("Change from peak", format_value(peak.get("change_from_peak"), "signed_integer")),
-        ("Last 12-month change", format_value(month_metric_value(row["state_abbreviation"], reporting_month, "last_12_month_change"), "signed_integer")),
-        ("Applications submitted", format_value(month_row.get("total_applications_for_financial_assistance_submitted_at_state_level"))),
-        ("Eligibility determinations", format_value(month_row.get("total_medicaid_and_chip_determinations"))),
-        ("Application-Determination Balance", format_value(balance.get("application_determination_balance"), "signed_integer")),
-        ("Preliminary status", "Preliminary" if month_row.get("preliminary_or_updated") == "P" else "Final/updated"),
-        ("Data missingness", format_value(row["missingness_percent"], "percent")),
-    ]
-    return html.Div(
-        className="state-profile",
-        children=[
-            html.P("Selected State Snapshot", className="eyebrow"),
-            html.H3(f"{row['state_name']} ({row['state_abbreviation']})"),
+def comparison_dot_lineup(metric_key: str, reporting_month: str, state_a: str, state_b: str) -> html.Div:
+    metric_key = RANK_STRIP_METRIC_KEY
+    ranked_all = ranked_metric_rows(reporting_month, metric_key)
+    total = len(ranked_all)
+    if total == 0:
+        return html.Div()
+    rank_lookup = {
+        row["state_abbreviation"]: index
+        for index, row in enumerate(ranked_all, start=1)
+    }
+    dots = []
+    for index, row in enumerate(ranked_all, start=1):
+        left = ((index - 1) / max(total - 1, 1)) * 100
+        dots.append(
+            html.Span(
+                className="lineup-dot",
+                style={"left": f"{left}%"},
+                title=f"{row['state_name']} #{index}",
+            )
+        )
+    ticks = []
+    tick_values = [1, 10, 20, 30, 40, total]
+    seen_ticks: set[int] = set()
+    for tick in tick_values:
+        if tick in seen_ticks or tick < 1 or tick > total:
+            continue
+        seen_ticks.add(tick)
+        left = ((tick - 1) / max(total - 1, 1)) * 100
+        ticks.append(
             html.Div(
-                className="profile-list",
+                className="lineup-tick",
+                style={"left": f"{left}%"},
+                children=[html.Span(str(tick))],
+            )
+        )
+    highlight_nodes = []
+    selected_states = [(state_a, "state-a"), (state_b, "state-b")]
+    positions = []
+    ranks_for_gap = []
+    for state_key, variant in selected_states:
+        rank = rank_lookup.get(state_key)
+        if rank is None:
+            continue
+        left = ((rank - 1) / max(total - 1, 1)) * 100
+        label_offset = 0
+        if positions and abs(positions[0] - left) < 10:
+            label_offset = 22
+        positions.append(left)
+        ranks_for_gap.append((rank, left))
+        highlight_nodes.append(
+            html.Div(
+                className=f"lineup-highlight {variant}",
+                style={"left": f"{left}%", "top": f"{label_offset}px"},
                 children=[
-                    html.Div(className="profile-row", children=[html.Span(label), html.Strong(value)])
-                    for label, value in fields
+                    html.Span(
+                        f"{state_lookup[state_key]['state_name']} #{rank}",
+                        className="lineup-label-chip",
+                    )
+                ],
+            )
+        )
+    gap_note = None
+    if len(ranks_for_gap) == 2:
+        rank_gap = abs(ranks_for_gap[0][0] - ranks_for_gap[1][0])
+        mid_left = (ranks_for_gap[0][1] + ranks_for_gap[1][1]) / 2
+        gap_note = html.Div(
+            className="lineup-gap-note",
+            style={"left": f"{mid_left}%"},
+            children=f"{rank_gap}-rank gap",
+        )
+    return html.Div(
+        className="lineup-box-inner",
+        children=[
+            html.Div(
+                className="lineup-header",
+                children=[
+                    html.H3("Where the selected states rank nationally"),
+                    html.Small("Lower rank numbers indicate higher values."),
                 ],
             ),
-            html.Div(className="caution-box", children=[html.Strong("Caution flag"), html.P(row["data_quality_note"])]),
+            html.Div(
+                className="lineup-scale",
+                children=[
+                    html.Span("Best rank: 1"),
+                    html.Span(f"Worst rank: {total}"),
+                ],
+            ),
+            html.Div(
+                className="lineup-zones",
+                children=[
+                    html.Span("Top ranked"),
+                    html.Span("Upper middle"),
+                    html.Span("Middle"),
+                    html.Span("Lower ranked"),
+                ],
+            ),
+            html.Div(
+                className="lineup-track",
+                children=[
+                    html.Div(className="lineup-track-line"),
+                    *ticks,
+                    *dots,
+                    *highlight_nodes,
+                    gap_note,
+                ],
+            ),
+            html.P(
+                f"{month_label(reporting_month)} monthly reported values · {map_metric_dropdown_label(metric_key)}",
+                className="lineup-subtitle-bottom",
+            ),
         ],
     )
 
 
-def ranking_bar(metric_key: str, reporting_month: str, ranking_view: str, selected_state: str) -> go.Figure:
+def ranking_table_component(metric_key: str, reporting_month: str, state_a: str, state_b: str) -> html.Div:
+    metric_key = RANK_STRIP_METRIC_KEY
+    ranked_all = ranked_metric_rows(reporting_month, metric_key)
+    rows = list(ranked_all)
     metric = MAP_METRICS[metric_key]
-    ranked = sorted(
-        [row for row in map_rows_for_month(reporting_month, metric_key) if row.get("metric_value") is not None],
-        key=lambda row: row.get("metric_value") or 0,
-        reverse=ranking_view != "bottom10",
-    )
-    if ranking_view in {"top10", "bottom10"}:
-        ranked = ranked[:10]
-    ranked = list(reversed(ranked))
-    colors = ["#12324a" if row["state_abbreviation"] == selected_state else "#2f7d78" for row in ranked]
-    fig = go.Figure(
-        go.Bar(
-            x=[row["metric_value"] for row in ranked],
-            y=[f"{row['state_name']} ({row['state_abbreviation']})" for row in ranked],
-            orientation="h",
-            marker_color=colors,
-            customdata=[row["state_abbreviation"] for row in ranked],
-            hovertemplate=f"%{{y}}<br>{metric['label']}: %{{x:,.2f}}<extra></extra>",
+    headers = ["Rank", "State", "Value", "Marker"]
+    body_rows = []
+    for row in rows:
+        rank, total = selected_state_metric_rank(metric_key, reporting_month, row["state_abbreviation"])
+        is_selected_a = row["state_abbreviation"] == state_a
+        is_selected_b = row["state_abbreviation"] == state_b
+        marker_parts = []
+        if is_selected_a:
+            marker_parts.append("State A")
+        if is_selected_b:
+            marker_parts.append("State B")
+        row_class = "ranking-row"
+        if is_selected_a:
+            row_class += " ranking-row-a"
+        elif is_selected_b:
+            row_class += " ranking-row-b"
+        body_rows.append(
+            html.Tr(
+                className=row_class,
+                children=[
+                    html.Td(f"#{rank}" if rank is not None else "n/a"),
+                    html.Td(row["state_name"]),
+                    html.Td(format_value(row["metric_value"], metric["kind"])),
+                    html.Td(" · ".join(marker_parts) if marker_parts else ""),
+                ],
+            )
         )
+    return html.Div(
+        className="ranking-table-wrap",
+        children=[
+            html.Div(
+                className="section-subhead compact",
+                children=[
+                    html.P(f"{month_label(reporting_month)} · {map_metric_dropdown_label(metric_key)}"),
+                ],
+            ),
+            html.Div(
+                className="ranking-table-scroll",
+                children=[
+                    html.Table(
+                        className="ranking-table",
+                        children=[
+                            html.Thead(html.Tr([html.Th(header) for header in headers])),
+                            html.Tbody(body_rows),
+                        ],
+                    )
+                ],
+            ),
+        ],
     )
-    fig.update_layout(
-        title={
-            "text": f"State ranking: {metric['label']}<br><sup>Sorted for {month_label(reporting_month)}. Higher or lower rank is descriptive, not good or bad performance.</sup>"
-        },
-        margin={"l": 150, "r": 20, "t": 70, "b": 40},
-        paper_bgcolor="white",
-        plot_bgcolor="white",
-        xaxis_title=metric["short"],
-        yaxis_title=None,
-    )
-    return fig
 
 
-def selected_state_self_comparison(selected_state: str) -> html.Div:
+def comparison_state_metrics(selected_state: str, reporting_month: str, metric_key: str) -> dict[str, object]:
+    row = state_lookup.get(selected_state, state_rows[0])
+    state_abbreviation = row["state_abbreviation"]
+    month_row = row_for_state_month(state_abbreviation, reporting_month) or row_for_state_month(state_abbreviation, LATEST_MONTH_VALUE) or {}
+    story = state_enrollment_story(state_abbreviation)
+    rank, total_states = selected_state_metric_rank(metric_key, reporting_month, state_abbreviation)
+    preliminary_status = "Preliminary" if month_row.get("preliminary_or_updated") == "P" else "Final/updated"
+    return {
+        "state_abbreviation": state_abbreviation,
+        "state_name": row["state_name"],
+        "metric_value": month_metric_value(state_abbreviation, reporting_month, metric_key),
+        "metric_rank": rank,
+        "metric_rank_total": total_states,
+        "percent_change_since_2019": story["percent_change_from_baseline"],
+        "percent_change_from_peak": story["percent_change_from_peak"],
+        "applications_per_100000": month_metric_value(state_abbreviation, reporting_month, "applications_submitted_per_100000_residents"),
+        "determinations_per_100000": month_metric_value(state_abbreviation, reporting_month, "eligibility_determinations_per_100000_residents"),
+        "total_enrollment": to_float(month_row.get("total_medicaid_and_chip_enrollment")),
+        "medicaid_enrollment": to_float(month_row.get("total_medicaid_enrollment")),
+        "chip_enrollment": to_float(month_row.get("total_chip_enrollment")),
+        "applications_submitted": to_float(month_row.get("total_applications_for_financial_assistance_submitted_at_state_level")),
+        "eligibility_determinations": to_float(month_row.get("total_medicaid_and_chip_determinations")),
+        "application_determination_balance": to_float(latest_balance_lookup.get(state_abbreviation, {}).get("application_determination_balance")),
+        "medicaid_share": ratio(to_float(month_row.get("total_medicaid_enrollment")), to_float(month_row.get("total_medicaid_and_chip_enrollment")), 100),
+        "chip_share": ratio(to_float(month_row.get("total_chip_enrollment")), to_float(month_row.get("total_medicaid_and_chip_enrollment")), 100),
+        "missingness_percent": to_float(row.get("missingness_percent")),
+        "preliminary_status": preliminary_status,
+        "data_quality_note": row.get("data_quality_note", ""),
+        "population_year_value": row.get("population_denominator_year") or population_year,
+    }
+
+
+def format_comparison_metric_value(metric_key: str, value: float | int | None) -> str:
+    if metric_key == "medicaid_chip_enrollment_per_1000_residents":
+        return format_value(value, "decimal")
+    return format_value(value, MAP_METRICS[metric_key]["kind"])
+
+
+def comparison_difference_text(label: str, a_value: float | int | None, b_value: float | int | None, kind: str, a_name: str, b_name: str) -> str:
+    a_num = to_float(a_value)
+    b_num = to_float(b_value)
+    if a_num is None or b_num is None:
+        return "Difference unavailable"
+    if abs(a_num - b_num) < 1e-9:
+        return "No difference"
+    if kind == "rank":
+        better_name = a_name if a_num < b_num else b_name
+        gap = int(abs(a_num - b_num))
+        return f"{better_name} ahead by {gap} ranks"
+    diff = abs(a_num - b_num)
+    leader_name = a_name if a_num > b_num else b_name
+    if kind == "percent":
+        return f"{leader_name} +{diff:.1f} pts"
+    if kind == "decimal":
+        return f"{leader_name} +{diff:,.1f}"
+    return f"{leader_name} +{format_value(diff, kind)}"
+
+
+def comparison_cell_state(
+    value: float | int | None,
+    other_value: float | int | None,
+    mode: str,
+    kind: str,
+) -> tuple[str, str]:
+    value_num = to_float(value)
+    other_num = to_float(other_value)
+    if value_num is None:
+        return "", "is-neutral"
+    if mode == "sign":
+        if value_num > 0:
+            return "▲", "is-better"
+        if value_num < 0:
+            return "▼", "is-worse"
+        return "", "is-neutral"
+    if other_num is None or abs(value_num - other_num) < 1e-9:
+        return "", "is-neutral"
+    if mode == "lower":
+        return ("▲", "is-better") if value_num < other_num else ("▼", "is-worse")
+    if mode == "closer_zero":
+        return ("▲", "is-better") if abs(value_num) < abs(other_num) else ("▼", "is-worse")
+    return ("▲", "is-better") if value_num > other_num else ("▼", "is-worse")
+
+
+def comparison_diff_chip(
+    a_name: str,
+    b_name: str,
+    a_value: float | int | None,
+    b_value: float | int | None,
+    mode: str,
+    kind: str,
+) -> tuple[str, str]:
+    a_num = to_float(a_value)
+    b_num = to_float(b_value)
+    if a_num is None or b_num is None:
+        return "Difference unavailable", "is-neutral"
+    if abs(a_num - b_num) < 1e-9:
+        return "No difference", "is-neutral"
+    if mode == "lower":
+        better_name = a_name if a_num < b_num else b_name
+        gap = int(abs(a_num - b_num))
+        return f"▲ {better_name} ahead by {gap} ranks", "is-better"
+    if mode == "closer_zero":
+        better_name = a_name if abs(a_num) < abs(b_num) else b_name
+        return f"▲ {better_name} closer to peak", "is-better"
+    if mode == "sign":
+        leader_name = a_name if a_num > b_num else b_name
+        diff = abs(a_num - b_num)
+        return f"{'▲' if max(a_num, b_num) > 0 else '▼'} {leader_name} +{diff:.1f} pts", "is-better" if max(a_num, b_num) > 0 else "is-worse"
+    leader_name = a_name if a_num > b_num else b_name
+    diff = abs(a_num - b_num)
+    if kind == "percent":
+        return f"▲ {leader_name} +{diff:.1f} pts", "is-better"
+    if kind == "decimal":
+        return f"▲ {leader_name} +{diff:,.1f}", "is-better"
+    return f"▲ {leader_name} +{format_value(diff, kind)}", "is-better"
+
+
+def build_state_comparison_summary(state_a: str, state_b: str, reporting_month: str, metric_key: str) -> html.Div:
+    a = comparison_state_metrics(state_a, reporting_month, metric_key)
+    b = comparison_state_metrics(state_b, reporting_month, metric_key)
+    metric_label = map_metric_dropdown_label(metric_key)
+    metric_label_lower = metric_label[0].lower() + metric_label[1:]
+    rows = [
+        (
+            f"{metric_label}",
+            a["metric_value"],
+            b["metric_value"],
+            format_comparison_metric_value(metric_key, a["metric_value"]),
+            format_comparison_metric_value(metric_key, b["metric_value"]),
+            "higher",
+            MAP_METRICS[metric_key]["kind"],
+        ),
+        (
+            f"National rank for {metric_label_lower}, {short_month_label(reporting_month)}",
+            a["metric_rank"],
+            b["metric_rank"],
+            f"#{a['metric_rank']}" if a["metric_rank"] is not None else "n/a",
+            f"#{b['metric_rank']}" if b["metric_rank"] is not None else "n/a",
+            "lower",
+            "rank",
+        ),
+        (
+            "Change since Jan. 2019",
+            a["percent_change_since_2019"],
+            b["percent_change_since_2019"],
+            format_value(a["percent_change_since_2019"], "percent"),
+            format_value(b["percent_change_since_2019"], "percent"),
+            "sign",
+            "percent",
+        ),
+        (
+            "Change from peak",
+            a["percent_change_from_peak"],
+            b["percent_change_from_peak"],
+            format_value(a["percent_change_from_peak"], "percent"),
+            format_value(b["percent_change_from_peak"], "percent"),
+            "closer_zero",
+            "percent",
+        ),
+        (
+            "Applications per 100,000",
+            a["applications_per_100000"],
+            b["applications_per_100000"],
+            format_value(a["applications_per_100000"], "decimal"),
+            format_value(b["applications_per_100000"], "decimal"),
+            "higher",
+            "decimal",
+        ),
+        (
+            "Determinations per 100,000",
+            a["determinations_per_100000"],
+            b["determinations_per_100000"],
+            format_value(a["determinations_per_100000"], "decimal"),
+            format_value(b["determinations_per_100000"], "decimal"),
+            "higher",
+            "decimal",
+        ),
+    ]
+    metric_leader = a["state_name"] if (to_float(a["metric_value"]) or 0) > (to_float(b["metric_value"]) or 0) else b["state_name"]
+    apps_leader = a["state_name"] if (to_float(a["applications_per_100000"]) or 0) > (to_float(b["applications_per_100000"]) or 0) else b["state_name"]
+    det_leader = a["state_name"] if (to_float(a["determinations_per_100000"]) or 0) > (to_float(b["determinations_per_100000"]) or 0) else b["state_name"]
+    takeaway = (
+        f"{metric_leader} has higher {metric_label_lower}, while {apps_leader} has higher application activity and {det_leader} has higher determination activity per 100,000 residents."
+    )
+    return html.Div(
+        className="comparison-summary-panel",
+        children=[
+            html.Div(
+                className="comparison-summary-header",
+                children=[
+                    html.H3("Key comparison"),
+                    html.P(f"Direct side-by-side comparison for {month_label(reporting_month)}."),
+                ],
+            ),
+            html.P(takeaway, className="comparison-summary-takeaway"),
+            html.Div(
+                className="comparison-summary-grid",
+                children=[
+                    html.Div("Measure", className="comparison-summary-colhead measure"),
+                    html.Div(a["state_name"], className="comparison-summary-colhead"),
+                    html.Div(b["state_name"], className="comparison-summary-colhead"),
+                    html.Div("Difference", className="comparison-summary-colhead diff"),
+                    *[
+                        item
+                        for label, a_value, b_value, a_text, b_text, mode, kind in rows
+                        for item in (
+                            html.Div(label, className="comparison-summary-cell measure"),
+                            html.Div(
+                                html.Span(a_text),
+                                className=f"comparison-summary-cell value state-a {comparison_cell_state(a_value, b_value, mode, kind)[1]}",
+                            ),
+                            html.Div(
+                                html.Span(b_text),
+                                className=f"comparison-summary-cell value state-b {comparison_cell_state(b_value, a_value, mode, kind)[1]}",
+                            ),
+                            html.Div(
+                                comparison_diff_chip(a["state_name"], b["state_name"], a_value, b_value, mode, kind)[0],
+                                className=f"comparison-summary-cell diff-chip {comparison_diff_chip(a['state_name'], b['state_name'], a_value, b_value, mode, kind)[1]}",
+                            ),
+                        )
+                    ],
+                ],
+            ),
+        ],
+    )
+
+
+def build_comparison_status_row(state_a: str, state_b: str, reporting_month: str, metric_key: str) -> html.Div:
+    return html.Div()
+
+
+def build_state_profile(selected_state: str, reporting_month: str, metric_key: str, state_label: str, accent_class: str) -> html.Div:
+    metrics = comparison_state_metrics(selected_state, reporting_month, metric_key)
+    grouped_fields = [
+        (
+            "Scale and context",
+            [
+                ("Total Medicaid/CHIP enrollment", format_value(metrics["total_enrollment"])),
+                ("Medicaid enrollment", format_value(metrics["medicaid_enrollment"])),
+                ("CHIP enrollment", format_value(metrics["chip_enrollment"])),
+                ("Applications submitted", format_value(metrics["applications_submitted"])),
+                ("Eligibility determinations", format_value(metrics["eligibility_determinations"])),
+                ("Application-determination balance", format_value(metrics["application_determination_balance"], "signed_integer")),
+            ],
+        ),
+        (
+            "Program mix",
+            [
+                ("Medicaid share", format_value(metrics["medicaid_share"], "percent")),
+                ("CHIP share", format_value(metrics["chip_share"], "percent")),
+                ("Population denominator year", str(metrics["population_year_value"])),
+            ],
+        ),
+    ]
+
+    return html.Div(
+        className=f"state-profile-groups comparison-profile {accent_class}",
+        children=[
+            html.Div(
+                className="comparison-profile-header",
+                children=[
+                    html.Span(state_label, className="comparison-profile-eyebrow"),
+                    html.H3(f"{metrics['state_name']} supporting profile"),
+                ],
+            ),
+            html.Div(
+                className="comparison-profile-sections",
+                children=[
+                    html.Div(
+                        className="comparison-profile-section",
+                        children=[
+                            html.H3(title),
+                            html.Div(
+                                className="comparison-profile-list",
+                                children=[
+                                    html.Div(className="comparison-profile-row", children=[html.Span(label), html.Strong(value)])
+                                    for label, value in values
+                                ],
+                            ),
+                        ],
+                    )
+                    for title, values in grouped_fields
+                ],
+            ),
+            html.Div(className="comparison-profile-note", children=[html.Strong("Data quality note"), html.P(metrics["data_quality_note"])]),
+        ],
+    )
+
+
+def indexed_story_bounds(states: list[str]) -> tuple[float, float]:
+    values: list[float] = []
+    for state in states:
+        story = state_enrollment_story(state)
+        for month_row in state_trend_rows(state):
+            indexed = ratio(to_float(month_row.get("total_medicaid_and_chip_enrollment")), story["baseline_value"], 100)
+            if indexed is not None:
+                values.append(indexed)
+    if not values:
+        return 95.0, 105.0
+    return max(0.0, min(values) - 5), max(values) + 5
+
+
+def selected_state_self_comparison(selected_state: str, label: str, accent_color: str, shared_y_range: tuple[float, float]) -> html.Div:
     row = state_lookup.get(selected_state, state_rows[0])
     rows = state_trend_rows(row["state_abbreviation"])
-    baseline = row_for_state_month(row["state_abbreviation"], BASELINE_MONTH) or rows[0]
     latest = rows[-1]
-    peak = max(rows, key=lambda record: to_float(record.get("total_medicaid_and_chip_enrollment")) or 0)
-    prior_12 = row_months_before(row["state_abbreviation"], latest["reporting_month"]) or {}
-    baseline_value = to_float(baseline.get("total_medicaid_and_chip_enrollment"))
-    latest_value = to_float(latest.get("total_medicaid_and_chip_enrollment"))
-    peak_value = to_float(peak.get("total_medicaid_and_chip_enrollment"))
-    prior_12_value = to_float(prior_12.get("total_medicaid_and_chip_enrollment"))
-    latest_medicaid = to_float(latest.get("total_medicaid_enrollment"))
-    latest_chip = to_float(latest.get("total_chip_enrollment"))
-    latest_applications = to_float(latest.get("total_applications_for_financial_assistance_submitted_at_state_level"))
-    latest_determinations = to_float(latest.get("total_medicaid_and_chip_determinations"))
-    balance = latest_balance_lookup.get(row["state_abbreviation"], {})
-    comparison_cards = [
-        card("January 2019 enrollment", format_value(baseline_value), "Baseline for indexed and change views"),
-        card("Peak enrollment", format_value(peak_value), month_label(peak["reporting_month"])),
-        card("Latest enrollment", format_value(latest_value), month_label(latest["reporting_month"])),
-        card("Change since January 2019", format_value(latest_value - baseline_value if latest_value is not None and baseline_value is not None else None, "signed_integer"), format_value(percent_change(latest_value, baseline_value), "percent")),
-        card("Change from peak", format_value(latest_value - peak_value if latest_value is not None and peak_value is not None else None, "signed_integer"), format_value(percent_change(latest_value, peak_value), "percent")),
-        card("Last 12-month change", format_value(latest_value - prior_12_value if latest_value is not None and prior_12_value is not None else None, "signed_integer"), format_value(percent_change(latest_value, prior_12_value), "percent")),
-        card("Latest Medicaid enrollment", format_value(latest_medicaid), "Latest state month"),
-        card("Latest CHIP enrollment", format_value(latest_chip), "Latest state month"),
-        card("Latest applications submitted", format_value(latest_applications), "Descriptive operations field"),
-        card("Latest eligibility determinations", format_value(latest_determinations), "Descriptive operations field"),
-        card("Application-Determination Balance", format_value(balance.get("application_determination_balance"), "signed_integer"), "Applications minus determinations; not backlog"),
-    ]
+    story = state_enrollment_story(row["state_abbreviation"])
+
     bar_fig = go.Figure(
         go.Bar(
-            x=["January 2019", month_label(peak["reporting_month"]), month_label(latest["reporting_month"])],
-            y=[baseline_value, peak_value, latest_value],
-            marker_color=["#8aa6b2", "#2f7d78", "#12324a"],
+            x=["January 2019", month_label(story["peak"]["reporting_month"]), month_label(latest["reporting_month"])],
+            y=[story["baseline_value"], story["peak_value"], story["latest_value"]],
+            marker_color=["#a8bac6", accent_color, "#203647"],
+            text=[format_short(story["baseline_value"]), format_short(story["peak_value"]), format_short(story["latest_value"])],
+            textposition="outside",
             hovertemplate="%{x}<br>Enrollment: %{y:,.0f}<extra></extra>",
         )
     )
     bar_fig.update_layout(
-        title="Baseline, Peak, And Latest Enrollment",
-        margin={"l": 45, "r": 20, "t": 48, "b": 50},
+        title="Baseline, Peak, And Latest Enrollment<br><sup>Selected-state Medicaid/CHIP enrollment at key points in the reporting period.</sup>",
+        margin={"l": 45, "r": 20, "t": 66, "b": 44},
+        height=300,
         paper_bgcolor="white",
         plot_bgcolor="white",
         yaxis_title="Enrollment",
     )
-    index_rows = []
-    for month_row in rows:
-        enrollment = to_float(month_row.get("total_medicaid_and_chip_enrollment"))
-        index_rows.append(
-            {
-                "reporting_month": month_row["reporting_month"],
-                "indexed_enrollment": ratio(enrollment, baseline_value, 100),
-            }
+
+    indexed_fig = go.Figure(
+        go.Scatter(
+            x=[month_row["reporting_month"] for month_row in rows],
+            y=[ratio(to_float(month_row.get("total_medicaid_and_chip_enrollment")), story["baseline_value"], 100) for month_row in rows],
+            mode="lines",
+            line={"color": accent_color, "width": 3},
+            hovertemplate=(
+                f"{row['state_name']}<br>"
+                "Reporting month: %{x|%b %Y}<br>"
+                "Enrollment index: %{y:,.1f}<extra></extra>"
+            ),
+            name=f"{row['state_name']} Medicaid/CHIP enrollment index",
         )
-    indexed_fig = line_figure(
-        index_rows,
-        [("indexed_enrollment", "Indexed enrollment")],
-        "Selected State Enrollment Trend Indexed To Jan. 2019",
-        "Shows relative change over time for the selected state; index values do not show raw enrollment size.",
-        "Index, Jan. 2019 = 100",
+    )
+    indexed_fig.update_layout(
+        title="Indexed Enrollment Trend<br><sup>Jan. 2019 = 100</sup>",
+        margin={"l": 58, "r": 24, "t": 66, "b": 46},
+        height=300,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        showlegend=False,
+        xaxis={"title": "Reporting month", "showgrid": True, "gridcolor": "#e8eef0"},
+        yaxis={"title": "Index, Jan. 2019 = 100", "showgrid": True, "gridcolor": "#eef2f3", "range": list(shared_y_range)},
+    )
+
+    baseline_phrase = "is near"
+    if story["change_from_baseline"] is not None and story["change_from_baseline"] > 0:
+        baseline_phrase = "remains above"
+    elif story["change_from_baseline"] is not None and story["change_from_baseline"] < 0:
+        baseline_phrase = "is below"
+
+    return html.Div(
+        className="panel self-comparison-card",
+        children=[
+            html.Div(
+                className="section-subhead compact",
+                children=[
+                    html.H2(f"{label}: {row['state_name']}"),
+                    html.P("Compare this state with its own baseline, peak, latest month, and full reporting-period trend."),
+                ],
+            ),
+            html.Div(
+                className="two-column self-comparison-grid",
+                children=[
+                    html.Div(className="panel inset-panel", children=[dcc.Graph(figure=bar_fig, config={"displayModeBar": False})]),
+                    html.Div(className="panel inset-panel", children=[dcc.Graph(figure=indexed_fig, config={"displayModeBar": False})]),
+                ],
+            ),
+            html.Div(
+                className="panel compact-panel self-comparison-takeaway",
+                children=[
+                    html.H3("Self-comparison takeaway"),
+                    html.P(
+                        f"{row['state_name']} {baseline_phrase} its January 2019 baseline and is "
+                        f"{format_signed_short(story['change_from_peak'])} from its observed peak by "
+                        f"{month_label(latest['reporting_month'])}."
+                    ),
+                ],
+            ),
+        ],
+    )
+
+
+def balance_row_for_month(selected_state: str, reporting_month: str) -> dict[str, str]:
+    rows = state_balance_rows(selected_state)
+    for row in rows:
+        if row["reporting_month"] == reporting_month:
+            return row
+    return latest_balance_lookup.get(selected_state, {})
+
+
+def within_state_indexed_figure(selected_state: str, accent_color: str, shared_y_range: tuple[float, float]) -> go.Figure:
+    row = state_lookup.get(selected_state, state_rows[0])
+    rows = state_trend_rows(row["state_abbreviation"])
+    story = state_enrollment_story(row["state_abbreviation"])
+    indexed_values = [ratio(to_float(month_row.get("total_medicaid_and_chip_enrollment")), story["baseline_value"], 100) for month_row in rows]
+    latest_index = indexed_values[-1]
+    peak_index = ratio(story["peak_value"], story["baseline_value"], 100)
+    fig = go.Figure(
+        go.Scatter(
+            x=[month_row["reporting_month"] for month_row in rows],
+            y=indexed_values,
+            mode="lines",
+            line={"color": accent_color, "width": 3},
+            hovertemplate=(
+                f"{row['state_name']}<br>"
+                "Reporting month: %{x|%b %Y}<br>"
+                "Enrollment index: %{y:,.1f}<extra></extra>"
+            ),
+            showlegend=False,
+        )
+    )
+    fig.add_hline(y=100, line_dash="dot", line_color="#9fb1ba")
+    if peak_index is not None:
+        fig.add_trace(
+            go.Scatter(
+                x=[story["peak"]["reporting_month"]],
+                y=[peak_index],
+                mode="markers+text",
+                marker={"size": 8, "color": accent_color},
+                text=["Peak"],
+                textposition="top center",
+                hovertemplate="Observed peak<br>%{x|%b %Y}<br>Index: %{y:,.1f}<extra></extra>",
+                showlegend=False,
+            )
+        )
+    if latest_index is not None:
+        fig.add_annotation(
+            x=rows[-1]["reporting_month"],
+            y=latest_index,
+            text=f"Current: {latest_index:,.1f}",
+            showarrow=False,
+            xanchor="left",
+            xshift=8,
+            font={"size": 11, "color": accent_color},
+            bgcolor="rgba(255,255,255,0.88)",
+            bordercolor=accent_color,
+            borderwidth=1,
+        )
+    fig.update_layout(
+        margin={"l": 50, "r": 22, "t": 34, "b": 42},
+        height=260,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        xaxis={"title": "Reporting month", "showgrid": True, "gridcolor": "#e8eef0"},
+        yaxis={"title": "Index, Jan. 2019 = 100", "showgrid": True, "gridcolor": "#eef2f3", "range": list(shared_y_range)},
+    )
+    return fig
+
+
+def within_state_peak_current_figure(selected_state: str, accent_color: str) -> go.Figure:
+    row = state_lookup.get(selected_state, state_rows[0])
+    story = state_enrollment_story(row["state_abbreviation"])
+    peak_value = story["peak_value"] or 0
+    latest_value = story["latest_value"] or 0
+    percent_from_peak = story["percent_change_from_peak"]
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=[latest_value, peak_value],
+            y=["Enrollment", "Enrollment"],
+            mode="lines",
+            line={"color": "#cad7dc", "width": 6},
+            hoverinfo="skip",
+            showlegend=False,
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[peak_value],
+            y=["Enrollment"],
+            mode="markers+text",
+            marker={"size": 12, "color": "#9fb1ba"},
+            text=[f"Peak {format_short(peak_value)}"],
+            textposition="top center",
+            showlegend=False,
+            hovertemplate="Observed peak<br>Enrollment: %{x:,.0f}<extra></extra>",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[latest_value],
+            y=["Enrollment"],
+            mode="markers+text",
+            marker={"size": 12, "color": accent_color},
+            text=[f"Current {format_short(latest_value)}"],
+            textposition="bottom center",
+            showlegend=False,
+            hovertemplate="Current month<br>Enrollment: %{x:,.0f}<extra></extra>",
+        )
+    )
+    if percent_from_peak is not None:
+        fig.add_annotation(
+            x=(peak_value + latest_value) / 2 if peak_value or latest_value else 0,
+            y="Enrollment",
+            text=f"{format_value(percent_from_peak, 'percent')} from peak",
+            showarrow=False,
+            yshift=-38,
+            font={"size": 11, "color": "#41515b"},
+            bgcolor="rgba(255,255,255,0.9)",
+            bordercolor="#d8e2e5",
+            borderwidth=1,
+        )
+    fig.update_layout(
+        margin={"l": 50, "r": 20, "t": 28, "b": 26},
+        height=200,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        xaxis={"title": "Enrollment", "showgrid": False},
+        yaxis={"showticklabels": False, "showgrid": False},
+    )
+    return fig
+
+
+def within_state_program_mix_figure(selected_state: str, reporting_month: str, accent_color: str) -> go.Figure:
+    metrics = comparison_state_metrics(selected_state, reporting_month, "medicaid_chip_enrollment_per_1000_residents")
+    medicaid_share = to_float(metrics.get("medicaid_share")) or 0
+    chip_share = to_float(metrics.get("chip_share")) or 0
+    fig = go.Figure()
+    fig.add_trace(
+        go.Bar(
+            x=[medicaid_share],
+            y=["Program mix"],
+            orientation="h",
+            name="Medicaid share",
+            marker={"color": "#4d6f8f"},
+            hovertemplate="Medicaid share<br>%{x:.1f}%<extra></extra>",
+        )
+    )
+    fig.add_trace(
+        go.Bar(
+            x=[chip_share],
+            y=["Program mix"],
+            orientation="h",
+            name="CHIP share",
+            marker={"color": "#aab9c5"},
+            hovertemplate="CHIP share<br>%{x:.1f}%<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        barmode="stack",
+        margin={"l": 6, "r": 6, "t": 4, "b": 4},
+        height=44,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        showlegend=False,
+        xaxis={"range": [0, 100], "showgrid": False, "showticklabels": False, "fixedrange": True},
+        yaxis={"showgrid": False, "showticklabels": False, "fixedrange": True},
+    )
+    return fig
+
+
+def within_state_meta_list(items: list[tuple[str, str]]) -> html.Div:
+    return html.Div(
+        className="within-state-meta-list",
+        children=[
+            html.Div(
+                className="within-state-meta-row",
+                children=[html.Span(label), html.Strong(value)],
+            )
+            for label, value in items
+        ],
+    )
+
+
+def within_state_heatmap_figure(selected_state: str, reporting_month: str, accent_color: str) -> go.Figure:
+    row = state_lookup.get(selected_state, state_rows[0])
+    rows = state_trend_rows(row["state_abbreviation"])
+    story = state_enrollment_story(row["state_abbreviation"])
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+    years = sorted({datetime.strptime(month_row["reporting_month"][:10], "%Y-%m-%d").year for month_row in rows})
+    z_values: list[list[float | None]] = []
+    hover_text: list[list[str]] = []
+    lookup: dict[tuple[int, int], dict[str, str]] = {}
+    for month_row in rows:
+        dt = datetime.strptime(month_row["reporting_month"][:10], "%Y-%m-%d")
+        lookup[(dt.year, dt.month)] = month_row
+    for year in years:
+        year_values: list[float | None] = []
+        year_hover: list[str] = []
+        for month_number in range(1, 13):
+            month_row = lookup.get((year, month_number))
+            if not month_row:
+                year_values.append(None)
+                year_hover.append("No reported value")
+                continue
+            total_enrollment = to_float(month_row.get("total_medicaid_and_chip_enrollment"))
+            change_from_baseline = None if total_enrollment is None or story["baseline_value"] is None else total_enrollment - story["baseline_value"]
+            change_from_peak = None if total_enrollment is None or story["peak_value"] is None else total_enrollment - story["peak_value"]
+            year_values.append(total_enrollment)
+            year_hover.append(
+                "<br>".join(
+                    [
+                        f"State: {row['state_name']}",
+                        f"Reporting month: {month_label(month_row['reporting_month'])}",
+                        f"Total Medicaid/CHIP enrollment: {format_value(total_enrollment)}",
+                        f"Jan. 2019 baseline enrollment: {format_value(story['baseline_value'])}",
+                        f"Change from Jan. 2019 baseline: {format_value(change_from_baseline, 'signed_integer')}",
+                        f"Change from observed peak: {format_value(change_from_peak, 'signed_integer')}",
+                    ]
+                )
+            )
+        z_values.append(year_values)
+        hover_text.append(year_hover)
+
+    fig = go.Figure(
+        go.Heatmap(
+            z=z_values,
+            x=month_names,
+            y=[str(year) for year in years],
+            text=hover_text,
+            hovertemplate="%{text}<extra></extra>",
+            colorscale=[
+                [0.00, "#eef3f4"],
+                [0.25, "#d5e2e6"],
+                [0.50, "#9dbcc6"],
+                [0.75, "#5f8fa3"],
+                [1.00, "#294f63"],
+            ],
+            showscale=False,
+            xgap=3,
+            ygap=3,
+            hoverongaps=False,
+        )
+    )
+
+    peak_dt = datetime.strptime(story["peak"]["reporting_month"][:10], "%Y-%m-%d")
+    fig.add_trace(
+        go.Scatter(
+            x=[month_names[peak_dt.month - 1]],
+            y=[str(peak_dt.year)],
+            mode="markers+text",
+            marker={"symbol": "star", "size": 11, "color": "#8b5e12", "line": {"width": 1, "color": "#ffffff"}},
+            text=["Peak"],
+            textfont={"color": "#ffffff"},
+            textposition="top center",
+            hovertemplate="Observed peak month<extra></extra>",
+            showlegend=False,
+        )
+    )
+
+    fig.update_layout(
+        margin={"l": 36, "r": 4, "t": 4, "b": 22},
+        height=330,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        xaxis={"side": "top", "tickfont": {"size": 10}, "showgrid": False, "fixedrange": True},
+        yaxis={"autorange": "reversed", "tickfont": {"size": 10}, "showgrid": False, "fixedrange": True},
+    )
+    return fig
+
+
+def within_state_heatmap_legend(selected_state: str) -> html.Div:
+    rows = state_trend_rows(selected_state)
+    monthly_values = [
+        to_float(row.get("total_medicaid_and_chip_enrollment"))
+        for row in rows
+        if to_float(row.get("total_medicaid_and_chip_enrollment")) is not None
+    ]
+    low_value = min(monthly_values) if monthly_values else None
+    high_value = max(monthly_values) if monthly_values else None
+    return html.Div(
+        className="within-heatmap-legend",
+        children=[
+            html.Div(
+                className="within-heatmap-legend-scale",
+                children=[
+                    html.Span("Monthly enrollment", className="within-heatmap-legend-label"),
+                    html.Div(className="within-heatmap-gradient"),
+                    html.Div(
+                        className="within-heatmap-range",
+                        children=[
+                            html.Span(f"Low: {format_short(low_value)}"),
+                            html.Span(f"High: {format_short(high_value)}"),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className="within-heatmap-key",
+                children=[
+                    html.Span("Star = peak month"),
+                ],
+            ),
+        ],
+    )
+
+
+def within_state_operations_program_mix_module(
+    selected_state: str,
+    reporting_month: str,
+    accent_class: str,
+    accent_color: str,
+) -> html.Div:
+    row = state_lookup.get(selected_state, state_rows[0])
+    month_row = row_for_state_month(row["state_abbreviation"], reporting_month) or {}
+    balance_row = balance_row_for_month(row["state_abbreviation"], reporting_month)
+    metrics = comparison_state_metrics(selected_state, reporting_month, "medicaid_chip_enrollment_per_1000_residents")
+    applications = to_float(month_row.get("total_applications_for_financial_assistance_submitted_at_state_level"))
+    determinations = to_float(month_row.get("total_medicaid_and_chip_determinations"))
+    balance = to_float(balance_row.get("application_determination_balance"))
+    coverage = ratio(determinations, applications, 100)
+    return html.Div(
+        className="within-panel-module operations-program-mix-module",
+        children=[
+            html.Div(
+                className="within-inline-section",
+                children=[
+                    html.Div(
+                        className="within-module-header",
+                        children=[html.H4("Eligibility operations"), html.P("Selected-month workflow")],
+                    ),
+                    html.Div(
+                        className="operations-flow-inline",
+                        children=[
+                            html.Span("Applications submitted", className="operations-flow-inline-label"),
+                            html.Strong(
+                                f"{format_short(applications)} \u2192 {format_short(determinations)}",
+                                className="operations-flow-inline-value",
+                            ),
+                            html.Span("Determinations completed", className="operations-flow-inline-label trailing"),
+                        ],
+                    ),
+                    html.Div(
+                        className="within-inline-stats",
+                        children=[
+                            html.Span(f"Balance: {format_value(balance, 'signed_integer')} applications"),
+                            html.Span(f"Determination coverage: {format_value(coverage, 'percent')}"),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className="within-inline-section",
+                children=[
+                    html.Div(
+                        className="within-module-header",
+                        children=[html.H4("Program mix"), html.P("Medicaid and CHIP composition")],
+                    ),
+                    dcc.Graph(
+                        figure=within_state_program_mix_figure(selected_state, reporting_month, accent_color),
+                        config={"displayModeBar": False},
+                    ),
+                    html.Div(
+                        className="within-program-mix-values",
+                        children=[
+                            html.Span(f"Medicaid: {format_value(metrics['medicaid_share'], 'percent')}"),
+                            html.Span(f"CHIP: {format_value(metrics['chip_share'], 'percent')}"),
+                        ],
+                    ),
+                    html.P(
+                        f"Population denominator year: {metrics['population_year_value']}",
+                        className="within-program-mix-year",
+                    ),
+                ],
+            ),
+        ],
+    )
+
+
+def within_state_history_summary_module(selected_state: str, reporting_month: str) -> html.Div:
+    row = state_lookup.get(selected_state, state_rows[0])
+    story = state_enrollment_story(row["state_abbreviation"])
+    selected_row = row_for_state_month(row["state_abbreviation"], reporting_month) or story["latest"]
+    selected_value = to_float(selected_row.get("total_medicaid_and_chip_enrollment"))
+    baseline_value = story["baseline_value"]
+    peak_value = story["peak_value"]
+    selected_change_from_baseline = None if selected_value is None or baseline_value is None else selected_value - baseline_value
+    selected_change_from_peak = None if selected_value is None or peak_value is None else selected_value - peak_value
+    baseline_status = (
+        "Above Jan. 2019 baseline" if (selected_change_from_baseline or 0) > 0
+        else "Below Jan. 2019 baseline" if (selected_change_from_baseline or 0) < 0
+        else "At Jan. 2019 baseline"
+    )
+    peak_status = (
+        "Down from observed peak" if (selected_change_from_peak or 0) < 0
+        else "At observed peak" if abs(to_float(selected_change_from_peak) or 0) < 1e-9
+        else "Above observed peak"
     )
     return html.Div(
-        className="wide-stack",
+        className="within-history-summary",
         children=[
-            html.Div(className="section-subhead", children=[html.H2("Selected State Self-Comparison"), html.P("Compare the selected state against its own baseline, peak, latest month, and recent history.")]),
-            html.Div(className="kpi-grid compact", children=comparison_cards),
             html.Div(
-                className="two-column",
+                className="within-history-primary history-stat-grid",
                 children=[
-                    html.Div(className="panel", children=[dcc.Graph(figure=bar_fig, config={"displayModeBar": False})]),
-                    html.Div(className="panel", children=[dcc.Graph(figure=indexed_fig, config={"displayModeBar": False})]),
+                    html.Div(
+                        className="history-stat-card primary",
+                        children=[
+                            html.Span(short_month_label(selected_row["reporting_month"]), className="within-overview-label"),
+                            html.Strong(format_short(selected_value), className="within-overview-value"),
+                            html.Small("Current enrollment", className="within-overview-caption"),
+                        ],
+                    ),
+                    html.Div(
+                        className="history-stat-card",
+                        children=[
+                            html.Span("Jan. 2019 baseline", className="within-overview-label"),
+                            html.Strong(format_short(baseline_value), className="within-history-stat-value"),
+                        ],
+                    ),
+                    html.Div(
+                        className="history-stat-card",
+                        children=[
+                            html.Span("Observed peak", className="within-overview-label"),
+                            html.Strong(format_short(peak_value), className="within-history-stat-value"),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className="within-overview-status",
+                children=[
+                    html.Span(baseline_status, className="journey-status-chip"),
+                    html.Span(peak_status, className="journey-status-chip muted"),
+                ],
+            ),
+            within_state_meta_list(
+                [
+                    ("Distance from Jan. 2019 baseline", f"{format_signed_short(selected_change_from_baseline)} ({format_value(percent_change(selected_value, baseline_value), 'percent')})"),
+                    ("Distance from observed peak", f"{format_signed_short(selected_change_from_peak)} ({format_value(percent_change(selected_value, peak_value), 'percent')})"),
+                ]
+            ),
+        ],
+    )
+
+
+def within_state_history_module(selected_state: str, reporting_month: str, accent_color: str) -> html.Div:
+    return html.Div(
+        className="within-panel-module history-heatmap-module",
+        children=[
+            html.Div(
+                className="within-module-header within-history-header",
+                children=[
+                    html.H4("Monthly Medicaid/CHIP enrollment"),
+                    html.P("Raw monthly enrollment counts"),
+                ],
+            ),
+            dcc.Graph(
+                figure=within_state_heatmap_figure(selected_state, reporting_month, accent_color),
+                config={"displayModeBar": False},
+            ),
+            within_state_heatmap_legend(selected_state),
+            html.Div(
+                className="enrollment-trend-blurbs",
+                children=[
+                    html.Div(
+                        className="enrollment-trend-blurb",
+                        children=[
+                            html.Span("Latest enrollment"),
+                            html.Strong(format_context_value(selected_state, "total_medicaid_chip_enrollment_current_month")),
+                        ],
+                    ),
+                    html.Div(
+                        className="enrollment-trend-blurb",
+                        children=[
+                            html.Span("Monthly change"),
+                            html.Strong(format_context_value(selected_state, "month_to_month_percent_change")),
+                        ],
+                    ),
+                    html.Div(
+                        className="enrollment-trend-blurb",
+                        children=[
+                            html.Span("Change from pre-open-enrollment baseline"),
+                            html.Strong(format_context_value(selected_state, "percent_change_pre_open_enrollment_to_current_month")),
+                        ],
+                    ),
+                ],
+            ),
+        ],
+    )
+
+
+CONTEXT_ENROLLMENT_LABELS = {
+    "total_medicaid_chip_enrollment_current_month": "Current Medicaid/CHIP enrollment",
+    "total_medicaid_chip_enrollment_previous_month": "Previous enrollment",
+    "month_to_month_percent_change": "Month-to-month change",
+    "net_change_pre_open_enrollment_to_current_month": "Change from July-Sept. 2013 baseline",
+    "percent_change_pre_open_enrollment_to_current_month": "Percent change from July-Sept. 2013 baseline",
+    "medicaid_expansion_status": "Medicaid expansion flag",
+    "marketplace_type": "Marketplace type",
+}
+
+ELIGIBILITY_THRESHOLD_LABELS = [
+    ("children_medicaid_ages_0_1", "Children Medicaid ages 0-1"),
+    ("children_medicaid_ages_1_5", "Children Medicaid ages 1-5"),
+    ("children_medicaid_ages_6_18", "Children Medicaid ages 6-18"),
+    ("separate_chip", "Separate CHIP"),
+    ("pregnant_women_medicaid", "Pregnant women Medicaid"),
+    ("pregnant_women_chip", "Pregnant women CHIP"),
+    ("parents", "Parents"),
+    ("other_adults", "Other adults"),
+]
+
+ELIGIBILITY_THRESHOLD_GROUPS = [
+    (
+        "Children",
+        [
+            ("children_medicaid_ages_0_1", "Ages 0-1"),
+            ("children_medicaid_ages_1_5", "Ages 1-5"),
+            ("children_medicaid_ages_6_18", "Ages 6-18"),
+        ],
+    ),
+    (
+        "Pregnant women / CHIP",
+        [
+            ("pregnant_women_medicaid", "Pregnant women Medicaid"),
+            ("pregnant_women_chip", "Pregnant women CHIP"),
+            ("separate_chip", "Separate CHIP"),
+        ],
+    ),
+    (
+        "Adults",
+        [
+            ("parents", "Parents"),
+            ("other_adults", "Other adults"),
+        ],
+    ),
+]
+
+
+def context_value(selected_state: str, subcategory: str) -> str | None:
+    row = state_context_lookup.get(selected_state, {}).get(subcategory)
+    if not row:
+        return None
+    value = row.get("value")
+    return value if value not in (None, "") else None
+
+
+def format_context_value(selected_state: str, subcategory: str) -> str:
+    row = state_context_lookup.get(selected_state, {}).get(subcategory)
+    if not row:
+        return "Not available"
+    value = row.get("value")
+    if value in (None, ""):
+        return "Not available"
+    value_type = row.get("value_type")
+    if value_type == "count":
+        return format_short(value)
+    if value_type == "percent":
+        return format_value(value, "percent")
+    if subcategory == "medicaid_expansion_status":
+        return "Yes" if value == "Y" else "No" if value == "N" else value
+    return value
+
+
+def eligibility_threshold_width(value: str | None) -> float:
+    if not value:
+        return 0
+    match = "".join(ch for ch in value if ch.isdigit() or ch == ".")
+    if not match:
+        return 0
+    return min(max(to_float(match) or 0, 0), 320) / 320 * 100
+
+
+def within_state_eligibility_context_module(selected_state: str) -> html.Div:
+    context = state_context_lookup.get(selected_state, {})
+    reporting_periods = sorted({row.get("reporting_period", "") for row in context.values() if row.get("reporting_period")})
+    source_note = " · ".join(reporting_periods[:2]) if reporting_periods else "Medicaid.gov State Profile context"
+    return html.Div(
+        className="within-panel-module eligibility-context-module",
+        children=[
+            html.Div(
+                className="within-module-header",
+                children=[
+                    html.H4("Eligibility context"),
+                    html.P(source_note),
+                ],
+            ),
+            html.Div(
+                className="eligibility-context-pills",
+                children=[
+                    html.Div(
+                        className="eligibility-context-pill",
+                        children=[
+                            html.Span("Medicaid expansion"),
+                            html.Strong(format_context_value(selected_state, "medicaid_expansion_status")),
+                        ],
+                    ),
+                    html.Div(
+                        className="eligibility-context-pill",
+                        children=[
+                            html.Span("Marketplace type"),
+                            html.Strong(format_context_value(selected_state, "marketplace_type")),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className="eligibility-threshold-groups",
+                children=[
+                    html.Div(
+                        className="eligibility-threshold-group",
+                        children=[
+                            html.H5(group_name),
+                            html.Div(
+                                className="eligibility-threshold-table",
+                                children=[
+                                    html.Div(
+                                        className="eligibility-threshold-row",
+                                        children=[
+                                            html.Span(label),
+                                            html.Div(
+                                                className="eligibility-threshold-bar-track",
+                                                children=[
+                                                    html.Div(
+                                                        className="eligibility-threshold-bar",
+                                                        style={"width": f"{eligibility_threshold_width(context_value(selected_state, key)):.1f}%"},
+                                                    )
+                                                ],
+                                            ),
+                                            html.Strong(format_context_value(selected_state, key)),
+                                        ],
+                                    )
+                                    for key, label in group_items
+                                ],
+                            ),
+                        ],
+                    )
+                    for group_name, group_items in ELIGIBILITY_THRESHOLD_GROUPS
+                ],
+            ),
+            html.P(
+                "Eligibility thresholds describe program rules, not observed enrollee demographic shares.",
+                className="within-state-note context-caveat",
+            ),
+        ],
+    )
+
+
+EXPENDITURE_SERIES = [
+    ("Medicaid Program", "Total Net Expenditures", "Medicaid Program"),
+    ("Medicaid Administration", "Total Net Expenditures", "Medicaid Administration"),
+    ("CHIP", "Total", "CHIP"),
+]
+
+
+def expenditure_rows_for_state(selected_state: str, program_category: str, expenditure_category: str) -> list[dict[str, str]]:
+    return [
+        row
+        for row in state_expenditure_lookup.get(selected_state, [])
+        if row["program_category"] == program_category and row["expenditure_category"] == expenditure_category
+    ]
+
+
+def latest_expenditure_year(selected_state: str) -> str:
+    years = sorted({row["fiscal_year"] for row in state_expenditure_lookup.get(selected_state, [])})
+    return years[-1] if years else "2024"
+
+
+def expenditure_row_for_year(selected_state: str, program_category: str, expenditure_category: str, fiscal_year: str) -> dict[str, str]:
+    return next(
+        (
+            row
+            for row in expenditure_rows_for_state(selected_state, program_category, expenditure_category)
+            if row["fiscal_year"] == fiscal_year
+        ),
+        {},
+    )
+
+
+def expenditure_core_rows_for_year(selected_state: str, fiscal_year: str) -> dict[str, dict[str, str]]:
+    return {
+        label: expenditure_row_for_year(selected_state, program, category, fiscal_year)
+        for program, category, label in EXPENDITURE_SERIES
+    }
+
+
+def expenditure_amount(row: dict[str, str]) -> float | None:
+    return to_float(row.get("total_computable_expenditure") or row.get("expenditure_amount"))
+
+
+def expenditure_total(rows_by_label: dict[str, dict[str, str]]) -> float | None:
+    values = [expenditure_amount(row) for row in rows_by_label.values()]
+    valid_values = [value for value in values if value is not None]
+    return sum(valid_values) if valid_values else None
+
+
+def within_state_expenditure_context_module(
+    selected_state: str,
+    accent_color: str,
+    fiscal_year: str,
+) -> html.Div:
+    available_years = {row["fiscal_year"] for row in state_expenditure_lookup.get(selected_state, [])}
+    if fiscal_year not in available_years:
+        fiscal_year = latest_expenditure_year(selected_state)
+    latest_rows = expenditure_core_rows_for_year(selected_state, fiscal_year)
+    total = expenditure_total(latest_rows)
+    date_accessed = next((item.get("date_accessed") for item in latest_rows.values() if item.get("date_accessed")), "Not available")
+    return html.Div(
+        className="within-panel-module expenditure-context-module",
+        children=[
+            html.Div(
+                className="within-module-header",
+                children=[
+                    html.H4("Fiscal profile"),
+                    html.P(f"FY{fiscal_year} expenditure snapshot · MBES/CBES financial reporting"),
+                ],
+            ),
+            html.Div(
+                className="expenditure-hero",
+                children=[
+                    html.Span("Total expenditure"),
+                    html.Strong(format_dollars_short(total)),
+                ],
+            ),
+            html.Div(
+                className="expenditure-breakdown-list",
+                children=[
+                    html.Div(
+                        className="expenditure-breakdown-row",
+                        children=[html.Span(label), html.Strong(format_dollars_short(expenditure_amount(expenditure_row)))],
+                    )
+                    for label, expenditure_row in latest_rows.items()
+                ],
+            ),
+            html.P(
+                f"Source: Medicaid.gov MBES/CBES, FY2019-FY{fiscal_year} · Accessed {date_accessed}",
+                className="expenditure-source-line",
+            ),
+        ],
+    )
+
+
+def within_state_unavailable_module(title: str, message: str) -> html.Div:
+    return html.Div(
+        className="within-panel-module context-unavailable-module",
+        children=[
+            html.Div(className="within-module-header", children=[html.H4(title)]),
+            html.Div(
+                className="within-policy-placeholder",
+                children=message,
+            ),
+        ],
+    )
+
+
+def state_outline_figure(selected_state: str, accent_color: str) -> go.Figure:
+    row = state_lookup.get(selected_state, state_rows[0])
+    fig = go.Figure(
+        go.Choropleth(
+            locations=[row["state_abbreviation"]],
+            z=[1],
+            locationmode="USA-states",
+            colorscale=[[0, "rgba(255,255,255,0)"], [1, "rgba(255,255,255,0)"]],
+            showscale=False,
+            hoverinfo="skip",
+            marker_line_color=accent_color,
+            marker_line_width=1.8,
+        )
+    )
+    fig.update_geos(
+        scope="usa",
+        fitbounds="locations",
+        visible=False,
+        showcountries=False,
+        showcoastlines=False,
+        showland=False,
+        showlakes=False,
+        bgcolor="rgba(0,0,0,0)",
+        projection_type="albers usa",
+    )
+    fig.update_layout(
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        width=72,
+        height=54,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+    )
+    return fig
+
+
+def within_state_profile_panel(
+    selected_state: str,
+    reporting_month: str,
+    state_label: str,
+    accent_class: str,
+    accent_color: str,
+    selected_view: str,
+    show_footer: bool,
+    fiscal_year: str,
+) -> html.Div:
+    metrics = comparison_state_metrics(selected_state, reporting_month, "medicaid_chip_enrollment_per_1000_residents")
+    row = state_lookup.get(selected_state, state_rows[0])
+    footer = (
+        f"Missingness: {format_value(metrics['missingness_percent'], 'percent')} · "
+        f"Population denominator: {metrics['population_year_value']}"
+    )
+    view_children: html.Component | list[html.Component]
+    if selected_view == "enrollment_history":
+        view_children = [within_state_history_module(selected_state, reporting_month, accent_color)]
+    elif selected_view == "eligibility_enrollment_context":
+        view_children = [within_state_eligibility_context_module(selected_state)]
+    elif selected_view == "expenditure_context":
+        view_children = [within_state_expenditure_context_module(selected_state, accent_color, fiscal_year)]
+    else:
+        view_children = [
+            within_state_unavailable_module(
+                "Context unavailable",
+                "This view is not available for the selected state context configuration.",
+            )
+        ]
+    return html.Div(
+        className=f"panel within-state-profile-panel {accent_class}",
+        children=[
+            html.Div(
+                className="within-profile-header",
+                children=[
+                    html.Div(
+                        className="within-profile-header-copy",
+                        children=[
+                            html.Span(state_label, className="comparison-profile-eyebrow"),
+                            html.H3(row["state_name"]),
+                        ],
+                    ),
+                    html.Div(
+                        className="within-profile-outline",
+                        children=[
+                            dcc.Graph(
+                                figure=state_outline_figure(selected_state, accent_color),
+                                config={"displayModeBar": False, "staticPlot": True},
+                            )
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className=f"within-profile-grid within-profile-grid--{selected_view}",
+                children=view_children,
+            ),
+        ],
+    )
+
+
+def build_within_state_section(
+    state_a: str,
+    state_b: str,
+    reporting_month: str,
+    selected_view: str,
+    fiscal_year: str,
+) -> html.Div:
+    return html.Div(
+        className="within-state-stack",
+        children=[
+            html.Div(
+                className="two-column within-state-profile-grid",
+                children=[
+                    within_state_profile_panel(
+                        state_a,
+                        reporting_month,
+                        "State A",
+                        "state-a-accent",
+                        "#d4a017",
+                        selected_view,
+                        False,
+                        fiscal_year,
+                    ),
+                    within_state_profile_panel(
+                        state_b,
+                        reporting_month,
+                        "State B",
+                        "state-b-accent",
+                        "#5c6ac4",
+                        selected_view,
+                        False,
+                        fiscal_year,
+                    ),
                 ],
             ),
         ],
@@ -1622,86 +3140,236 @@ def selected_state_self_comparison(selected_state: str) -> html.Div:
 
 
 def build_maps_tab() -> html.Div:
+    metric_options = [{"label": map_metric_dropdown_label(key), "value": key} for key in TWO_STATE_COMPARISON_METRIC_KEYS if key in MAP_METRICS]
+    month_options = [{"label": month_label(value), "value": value} for value in MONTH_VALUES]
     return html.Div(
         className="tab-page",
         children=[
             section_header(
                 "State Map Explorer",
-                "Which states show the largest enrollment counts, population-adjusted enrollment levels, or enrollment changes?",
-                "Use the metric dropdown, reporting month slider, and ranking control to compare geographic distribution with relative state position.",
+                "How does Medicaid/CHIP enrollment vary across states?",
+                "Compare raw enrollment, population-adjusted enrollment, and recent enrollment change across states.",
             ),
             html.Div(
-                className="controls",
+                className="workflow-band workflow-band-context",
                 children=[
-                    html.Label(
-                        [html.Span("Map metric"), dcc.Dropdown(id="map-metric", options=[{"label": cfg["label"], "value": key} for key, cfg in MAP_METRICS.items()], value="medicaid_chip_enrollment_per_1000_residents", clearable=False)]
-                    ),
-                    html.Label([html.Span("Selected state"), dcc.Dropdown(id="state-selector", options=sorted_states(state_rows), value="CA", clearable=False)]),
-                    html.Label(
-                        [
-                            html.Span("Ranking view"),
-                            dcc.RadioItems(
-                                id="map-ranking-view",
-                                options=[
-                                    {"label": "Top 10", "value": "top10"},
-                                    {"label": "Bottom 10", "value": "bottom10"},
-                                    {"label": "All states", "value": "all"},
-                                ],
-                                value="top10",
-                                className="segmented-control",
-                                inline=True,
-                            ),
-                        ]
-                    ),
-                ],
-            ),
-            html.Div(
-                className="month-control",
-                children=[
-                    html.Label("Reporting month / time control"),
-                    dcc.Slider(
-                        id="map-month-slider",
-                        min=0,
-                        max=len(MONTH_VALUES) - 1,
-                        step=1,
-                        value=len(MONTH_VALUES) - 1,
-                        marks=month_slider_marks(),
-                        tooltip={"placement": "bottom", "always_visible": False},
-                    ),
-                    html.Strong(id="selected-map-month"),
-                ],
-            ),
-            html.Div(className="map-title-block", children=[html.H2(id="map-title"), html.P(id="map-subtitle")]),
-            html.Div(
-                className="map-chart-layout",
-                children=[
-                    html.Div(className="panel map-panel", children=[dcc.Graph(id="state-map", className="state-map", config={"displayModeBar": False}), html.P(id="raw-map-note", className="small-note")]),
-                    html.Div(className="panel ranking-panel", children=[dcc.Graph(id="state-ranking-chart", config={"displayModeBar": False})]),
-                ],
-            ),
-            html.P(
-                className="small-note map-note",
-                children="The map shows geographic distribution, while the ranking chart shows relative state position for the selected metric. High or low rank is descriptive, not good or bad performance.",
-            ),
-            html.Div(
-                className="two-column",
-                children=[
-                    html.Aside(id="state-profile", className="profile-panel"),
                     html.Div(
-                        className="policy-note",
+                        className="workflow-band-header",
                         children=[
-                            html.H2("Raw Counts Vs Population Context"),
-                            html.P(
-                                "Raw enrollment counts are affected by state population size. Population-adjusted "
-                                "metrics such as enrollment per 1,000 residents are better for comparing relative "
-                                "coverage scale across states."
+                            html.P("Section 1", className="workflow-band-step"),
+                            html.H2("1. Selected states in national context"),
+                        ],
+                    ),
+                    html.Div(
+                        className="comparison-explorer panel",
+                        children=[
+                            dcc.Dropdown(id="state-selector", options=sorted_states(state_rows), value=DEFAULT_STATE_A, clearable=False, style={"display": "none"}),
+                            html.Div(
+                                className="compare-controls-highlight compare-state-primary-module",
+                                children=[
+                                    html.Div(
+                                        className="section-subhead compact",
+                                        children=[
+                                            html.H2("Compare Two States"),
+                                            html.P("Choose the two states first. The strip below shows where they rank nationally."),
+                                        ],
+                                    ),
+                                    html.Div(
+                                        className="state-chooser-module",
+                                        children=[
+                                            html.Div(
+                                                className="state-selector-primary-row",
+                                                children=[
+                                                    html.Label(
+                                                        [
+                                                            html.Span("State A"),
+                                                            dcc.Dropdown(id="state-a-selector", options=sorted_states(state_rows), value=DEFAULT_STATE_A, clearable=False),
+                                                        ],
+                                                        className="state-selector-primary",
+                                                    ),
+                                                    html.Div("vs", className="state-selector-vs"),
+                                                    html.Label(
+                                                        [
+                                                            html.Span("State B"),
+                                                            dcc.Dropdown(id="state-b-selector", options=sorted_states(state_rows), value=DEFAULT_STATE_B, clearable=False),
+                                                        ],
+                                                        className="state-selector-primary",
+                                                    ),
+                                                ],
+                                            ),
+                                        ],
+                                    ),
+                                    html.P(id="comparison-difference-text", className="comparison-difference-text"),
+                                ],
                             ),
-                            html.P(POLICY_NOTE),
+                            html.Div(
+                                className="panel comparison-lineup-panel",
+                                children=[
+                                    html.Div(
+                                        className="ranking-modal-launcher",
+                                        children=[
+                                            html.Button(
+                                                "Open full state rankings ↗",
+                                                id="ranking-modal-open",
+                                                className="ranking-open-button",
+                                                n_clicks=0,
+                                            ),
+                                        ],
+                                    ),
+                                    html.Div(id="comparison-lineup"),
+                                ],
+                            ),
+                            html.Div(
+                                id="ranking-modal",
+                                className="ranking-modal",
+                                children=[
+                                    html.Div(
+                                        id="ranking-modal-backdrop",
+                                        className="ranking-modal-backdrop",
+                                        n_clicks=0,
+                                    ),
+                                    html.Div(
+                                        className="ranking-modal-dialog",
+                                        children=[
+                                            html.Div(
+                                                className="ranking-modal-header",
+                                                children=[
+                                                    html.H3(id="ranking-modal-title"),
+                                                    html.Button(
+                                                        "Close",
+                                                        id="ranking-modal-close",
+                                                        className="ranking-modal-close",
+                                                        n_clicks=0,
+                                                    ),
+                                                ],
+                                            ),
+                                            html.Div(id="ranking-modal-body"),
+                                        ],
+                                    ),
+                                ],
+                            ),
                         ],
                     ),
                 ],
             ),
-            html.Div(id="state-self-comparison"),
+            html.Div(
+                className="workflow-band workflow-band-comparison",
+                children=[
+                    html.Div(
+                        className="workflow-band-header",
+                        children=[
+                            html.P("Section 2", className="workflow-band-step"),
+                            html.H2("2. Direct state-to-state comparison"),
+                            html.P("Compare the selected states side by side on the same measures."),
+                        ],
+                    ),
+                    html.Div(
+                        className="panel comparison-trend-panel",
+                        children=[
+                            html.Div(
+                                className="comparison-trend-controls",
+                                children=[
+                                    html.Div(className="section-subhead compact", children=[html.H2("Trend over time")]),
+                                    html.Div(
+                                        className="comparison-secondary-controls",
+                                        children=[
+                                            html.Label(
+                                                [
+                                                    html.Span("Metric"),
+                                                    dcc.Dropdown(id="map-metric", options=metric_options, value="medicaid_chip_enrollment_per_1000_residents", clearable=False),
+                                                ]
+                                            ),
+                                        ],
+                                    ),
+                                ],
+                            ),
+                            dcc.Graph(id="comparison-trend-chart", config={"displayModeBar": False}),
+                        ],
+                    ),
+                    html.Div(
+                        className="selected-state-focus comparison-focus-panel",
+                        children=[
+                            html.Div(
+                                className="comparison-month-controls comparison-month-controls-inline",
+                                children=[
+                                    html.Label(
+                                        [
+                                            html.Span("Selected month"),
+                                            dcc.Dropdown(id="map-month-value", options=month_options, value=LATEST_RELIABLE_MONTH_VALUE, clearable=False),
+                                        ]
+                                    ),
+                                    html.Div(id="comparison-month-status"),
+                                ],
+                            ),
+                            html.Div(id="state-comparison-summary"),
+                            html.Div(id="state-comparison-status"),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className="workflow-band workflow-band-profile",
+                children=[
+                    html.Div(
+                        className="workflow-band-header",
+                        children=[
+                            html.P("Section 3", className="workflow-band-step"),
+                            html.H2("3. Within-state state profiles"),
+                            html.P("Review each selected state's enrollment trend, eligibility rules, and fiscal profile."),
+                        ],
+                    ),
+                    html.Div(
+                        className="within-state-view-bar",
+                        children=[
+                            html.Span("View", className="within-state-view-label"),
+                            dcc.RadioItems(
+                                id="within-state-view",
+                                className="segmented-control within-state-view-selector",
+                                inputClassName="within-state-view-input",
+                                labelClassName="within-state-view-option",
+                                options=[
+                                    {"label": "Enrollment trend", "value": "enrollment_history"},
+                                    {"label": "Eligibility context", "value": "eligibility_enrollment_context"},
+                                    {"label": "Fiscal profile", "value": "expenditure_context"},
+                                ],
+                                value="enrollment_history",
+                                inline=True,
+                            ),
+                        ],
+                    ),
+                    html.Div(
+                        id="section3-fiscal-controls",
+                        className="section3-fiscal-controls is-hidden",
+                        children=[
+                            html.Div(
+                                className="section3-fiscal-control-copy",
+                                children=[
+                                    html.Strong("Fiscal profile controls"),
+                                    html.Span("Expenditure uses fiscal-year MBES/CBES financial reporting data."),
+                                ],
+                            ),
+                            html.Label(
+                                className="compact-control",
+                                children=[
+                                    html.Span("Expenditure year"),
+                                    dcc.Dropdown(
+                                        id="fiscal-year-selector",
+                                        options=[
+                                            {"label": f"FY{year}", "value": year}
+                                            for year in FISCAL_YEAR_VALUES
+                                        ],
+                                        value=LATEST_FISCAL_YEAR_VALUE,
+                                        clearable=False,
+                                        searchable=False,
+                                    ),
+                                ],
+                            ),
+                        ],
+                    ),
+                    html.Div(id="state-self-comparison", className="wide-stack"),
+                    html.Div(className="helper-strip state-map-helper", children=[]),
+                ],
+            ),
         ],
     )
 
@@ -1902,12 +3570,351 @@ def latest_split_bar(selected_state: str | None = None) -> go.Figure:
     )
     fig.update_layout(
         title=title,
-        margin={"l": 44, "r": 20, "t": 52, "b": 42},
+        margin={"l": 44, "r": 18, "t": 46, "b": 34},
+        height=330,
         paper_bgcolor="white",
         plot_bgcolor="white",
         yaxis_title="Enrollment",
     )
     return fig
+
+
+def program_share_parts(medicaid: float | None, chip: float | None) -> dict[str, float | None]:
+    total = (medicaid or 0) + (chip or 0)
+    return {
+        "total": total,
+        "medicaid_share": ratio(medicaid, total, 100),
+        "chip_share": ratio(chip, total, 100),
+    }
+
+
+def current_split_figure(selected_state: str) -> go.Figure:
+    selected = state_lookup[selected_state]
+    state_medicaid = to_float(selected.get("latest_medicaid_enrollment"))
+    state_chip = to_float(selected.get("latest_chip_enrollment"))
+    national = current_national_totals()
+    national_parts = program_share_parts(national["medicaid"], national["chip"])
+    state_parts = program_share_parts(state_medicaid, state_chip)
+    rows = [
+        {
+            "label": "National",
+            "medicaid": national["medicaid"],
+            "chip": national["chip"],
+            "medicaid_share": national_parts["medicaid_share"],
+            "chip_share": national_parts["chip_share"],
+        },
+        {
+            "label": selected["state_name"],
+            "medicaid": state_medicaid,
+            "chip": state_chip,
+            "medicaid_share": state_parts["medicaid_share"],
+            "chip_share": state_parts["chip_share"],
+        },
+    ]
+    fig = go.Figure()
+    for program, share_key, count_key, color in [
+        ("Medicaid", "medicaid_share", "medicaid", "#12324a"),
+        ("CHIP", "chip_share", "chip", "#2f7d78"),
+    ]:
+        fig.add_trace(
+            go.Bar(
+                y=[row["label"] for row in rows],
+                x=[to_float(row[share_key]) or 0 for row in rows],
+                orientation="h",
+                name=program,
+                marker_color=color,
+                text=[format_value(row[share_key], "percent") for row in rows],
+                textposition="inside",
+                insidetextanchor="middle",
+                customdata=[
+                    [
+                        program,
+                        to_float(row[count_key]),
+                        to_float(row[share_key]),
+                    ]
+                    for row in rows
+                ],
+                hovertemplate=(
+                    "%{customdata[0]} enrollment: %{customdata[1]:,.0f}<br>"
+                    "Share of total: %{customdata[2]:.1f}%<extra></extra>"
+                ),
+            )
+        )
+    fig.update_layout(
+        barmode="stack",
+        height=270,
+        margin={"l": 84, "r": 20, "t": 20, "b": 34},
+        xaxis={"range": [0, 100], "ticksuffix": "%", "showgrid": False, "title": None},
+        yaxis={"title": None},
+        legend={"orientation": "h", "y": -0.18},
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font={"family": "Inter, Arial, sans-serif", "color": "#253746"},
+    )
+    return fig
+
+
+def change_reference_row(selected_state: str, period: str, latest_row: dict[str, str], story: dict[str, object]) -> tuple[dict[str, str] | None, str]:
+    if period == "since_baseline":
+        return row_for_state_month(selected_state, BASELINE_MONTH) or state_trend_rows(selected_state)[0], "since Jan. 2019"
+    if period == "since_peak":
+        return story["peak"], "since observed peak"
+    return row_months_before(selected_state, latest_row["reporting_month"], 1), "latest month"
+
+
+def component_changes_for_period(selected_state: str, period: str) -> dict[str, object]:
+    rows = state_trend_rows(selected_state)
+    latest_row = rows[-1]
+    story = state_enrollment_story(selected_state)
+    reference_row, label = change_reference_row(selected_state, period, latest_row, story)
+    latest_medicaid = to_float(latest_row.get("total_medicaid_enrollment"))
+    latest_chip = to_float(latest_row.get("total_chip_enrollment"))
+    latest_total = to_float(latest_row.get("total_medicaid_and_chip_enrollment"))
+    ref_medicaid = to_float(reference_row.get("total_medicaid_enrollment")) if reference_row else None
+    ref_chip = to_float(reference_row.get("total_chip_enrollment")) if reference_row else None
+    ref_total = to_float(reference_row.get("total_medicaid_and_chip_enrollment")) if reference_row else None
+    medicaid_change = latest_medicaid - ref_medicaid if latest_medicaid is not None and ref_medicaid is not None else None
+    chip_change = latest_chip - ref_chip if latest_chip is not None and ref_chip is not None else None
+    total_change = latest_total - ref_total if latest_total is not None and ref_total is not None else None
+    absolute_total = (abs(medicaid_change) if medicaid_change is not None else 0) + (abs(chip_change) if chip_change is not None else 0)
+    return {
+        "period_label": label,
+        "latest_row": latest_row,
+        "reference_row": reference_row,
+        "medicaid_change": medicaid_change,
+        "chip_change": chip_change,
+        "total_change": total_change,
+        "medicaid_share_of_abs_change": ratio(abs(medicaid_change) if medicaid_change is not None else None, absolute_total, 100),
+        "chip_share_of_abs_change": ratio(abs(chip_change) if chip_change is not None else None, absolute_total, 100),
+        "main_driver": component_change_focus(medicaid_change, chip_change),
+    }
+
+
+def change_contribution_figure(change_data: dict[str, object]) -> go.Figure:
+    medicaid_share = to_float(change_data.get("medicaid_share_of_abs_change")) or 0
+    chip_share = to_float(change_data.get("chip_share_of_abs_change")) or 0
+    medicaid_change = to_float(change_data.get("medicaid_change"))
+    chip_change = to_float(change_data.get("chip_change"))
+    period_label = change_data["period_label"]
+    fig = go.Figure()
+    for program, share, change, color in [
+        ("Medicaid", medicaid_share, medicaid_change, "#12324a"),
+        ("CHIP", chip_share, chip_change, "#2f7d78"),
+    ]:
+        fig.add_trace(
+            go.Bar(
+                y=["Share of absolute change"],
+                x=[share],
+                orientation="h",
+                name=program,
+                marker_color=color,
+                text=[format_value(share, "percent") if share else ""],
+                textposition="inside",
+                customdata=[[program, change, share, period_label]],
+                hovertemplate=(
+                    "%{customdata[0]} change: %{customdata[1]:+,.0f}<br>"
+                    "Share of %{customdata[3]} change: %{customdata[2]:.1f}%<extra></extra>"
+                ),
+            )
+        )
+    fig.update_layout(
+        barmode="stack",
+        height=180,
+        margin={"l": 10, "r": 10, "t": 12, "b": 34},
+        xaxis={"range": [0, 100], "ticksuffix": "%", "visible": False},
+        yaxis={"visible": False},
+        legend={"orientation": "h", "y": -0.28},
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font={"family": "Inter, Arial, sans-serif", "color": "#253746"},
+    )
+    return fig
+
+
+def chip_kpi_summary(selected_state: str, change_data: dict[str, object]) -> list[html.Div]:
+    selected = state_lookup[selected_state]
+    latest_row = change_data["latest_row"]
+    latest_medicaid = to_float(latest_row.get("total_medicaid_enrollment"))
+    latest_chip = to_float(latest_row.get("total_chip_enrollment"))
+    latest_total = to_float(latest_row.get("total_medicaid_and_chip_enrollment"))
+    return [
+        card("Latest enrollment", format_short(latest_total), month_label(latest_row["reporting_month"])),
+        card("Medicaid share", format_value(ratio(latest_medicaid, latest_total, 100), "percent"), selected["state_name"]),
+        card("CHIP share", format_value(ratio(latest_chip, latest_total, 100), "percent"), selected["state_name"]),
+        card("Main movement", str(change_data["main_driver"]).capitalize(), change_data["period_label"]),
+    ]
+
+
+def change_summary_children(change_data: dict[str, object]) -> html.Div:
+    return html.Div(
+        className="chip-change-summary",
+        children=[
+            html.Div(
+                children=[
+                    html.Span("Medicaid change"),
+                    html.Strong(format_value(change_data["medicaid_change"], "signed_integer")),
+                ],
+            ),
+            html.Div(
+                children=[
+                    html.Span("CHIP change"),
+                    html.Strong(format_value(change_data["chip_change"], "signed_integer")),
+                ],
+            ),
+            html.Div(
+                children=[
+                    html.Span("Total change"),
+                    html.Strong(format_value(change_data["total_change"], "signed_integer")),
+                ],
+            ),
+        ],
+    )
+
+
+def financing_percent(value: str | int | float | None) -> str:
+    numeric = to_float(value)
+    if numeric is None:
+        return "Not available"
+    return f"{numeric * 100:.1f}%"
+
+
+def financing_multiplier_text(value: str | int | float | None) -> str:
+    numeric = to_float(value)
+    if numeric is None:
+        return "Not available"
+    return f"${numeric:.2f} federal per $1 state"
+
+
+def chip_multiplier_text(efmap: str | int | float | None, multiplier: str | int | float | None) -> str:
+    efmap_numeric = to_float(efmap)
+    if efmap_numeric is not None and efmap_numeric >= 1:
+        return "100% federal match / no state share"
+    return financing_multiplier_text(multiplier)
+
+
+def selected_state_financing_cards(selected_state: str) -> html.Div:
+    fmap_row = medicaid_fmap_lookup.get((selected_state, FINANCING_FISCAL_YEAR), {})
+    chip_row = chip_efmap_lookup.get((selected_state, FINANCING_FISCAL_YEAR), {})
+    cards = [
+        ("Medicaid FMAP", financing_percent(fmap_row.get("medicaid_fmap")), f"FY{FINANCING_FISCAL_YEAR} federal matching rate"),
+        ("Medicaid multiplier", financing_multiplier_text(fmap_row.get("medicaid_multiplier")), "Federal dollars per $1 state dollar"),
+        ("CHIP eFMAP", financing_percent(chip_row.get("chip_enhanced_fmap")), f"FY{FINANCING_FISCAL_YEAR} enhanced CHIP match"),
+        ("CHIP multiplier", chip_multiplier_text(chip_row.get("chip_enhanced_fmap"), chip_row.get("chip_multiplier_calculated")), "Calculated from enhanced FMAP"),
+    ]
+    return html.Div(
+        className="financing-card-grid",
+        children=[
+            html.Div(
+                className="financing-card",
+                children=[
+                    html.Span(label),
+                    html.Strong(value),
+                    html.P(helper),
+                ],
+            )
+            for label, value, helper in cards
+        ],
+    )
+
+
+CHIP_STRUCTURE_CATEGORIES = [
+    "Separate CHIP only",
+    "Medicaid expansion CHIP only",
+    "Both separate CHIP and Medicaid expansion CHIP",
+]
+CHIP_STRUCTURE_COLORS = {
+    "Separate CHIP only": "#c9792a",
+    "Medicaid expansion CHIP only": "#f1c75b",
+    "Both separate CHIP and Medicaid expansion CHIP": "#6fa8dc",
+}
+
+
+def chip_structure_map_figure(selected_state: str) -> go.Figure:
+    rows = [row for row in chip_structure_rows if row.get("state_abbr") in state_lookup]
+    z_values = [CHIP_STRUCTURE_CATEGORIES.index(row["chip_program_structure"]) for row in rows]
+    colorscale = []
+    max_index = len(CHIP_STRUCTURE_CATEGORIES) - 1
+    for index, category in enumerate(CHIP_STRUCTURE_CATEGORIES):
+        start = index / max_index if max_index else 0
+        end = (index + 0.999) / max_index if max_index else 1
+        colorscale.append([start, CHIP_STRUCTURE_COLORS[category]])
+        colorscale.append([min(end, 1), CHIP_STRUCTURE_COLORS[category]])
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Choropleth(
+            locations=[row["state_abbr"] for row in rows],
+            z=z_values,
+            locationmode="USA-states",
+            colorscale=colorscale,
+            zmin=0,
+            zmax=max_index,
+            marker_line_color="#ffffff",
+            marker_line_width=0.7,
+            customdata=[[row["state"], row["chip_program_structure"]] for row in rows],
+            hovertemplate="%{customdata[0]}<br>%{customdata[1]}<extra></extra>",
+            showscale=False,
+        )
+    )
+    if selected_state in chip_structure_lookup:
+        fig.add_trace(
+            go.Choropleth(
+                locations=[selected_state],
+                z=[0],
+                locationmode="USA-states",
+                colorscale=[[0, "rgba(0,0,0,0)"], [1, "rgba(0,0,0,0)"]],
+                marker_line_color="#17212b",
+                marker_line_width=3,
+                hoverinfo="skip",
+                showscale=False,
+            )
+        )
+    fig.update_geos(
+        scope="usa",
+        fitbounds="locations",
+        showlakes=False,
+        bgcolor="rgba(0,0,0,0)",
+    )
+    fig.update_layout(
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        height=390,
+        paper_bgcolor="white",
+        plot_bgcolor="white",
+        font={"family": "Inter, Arial, sans-serif", "color": "#253746"},
+    )
+    return fig
+
+
+def selected_chip_structure_label(selected_state: str) -> html.Div:
+    row = chip_structure_lookup.get(selected_state, {})
+    state_name = state_lookup.get(selected_state, {}).get("state_name", selected_state)
+    structure = row.get("chip_program_structure", "Not available")
+    return html.Div(
+        className="chip-structure-selected-label",
+        children=[
+            html.Span("Selected state"),
+            html.Strong(f"{state_name}: {structure}"),
+        ],
+    )
+
+
+def chip_structure_legend() -> html.Div:
+    return html.Div(
+        className="chip-structure-legend",
+        children=[
+            html.Div(
+                className="chip-structure-legend-item",
+                children=[
+                    html.Span(
+                        className="chip-structure-swatch",
+                        style={"backgroundColor": CHIP_STRUCTURE_COLORS[category]},
+                    ),
+                    html.Span(category),
+                ],
+            )
+            for category in CHIP_STRUCTURE_CATEGORIES
+        ],
+    )
 
 
 def build_chip_tab() -> html.Div:
@@ -1969,14 +3976,182 @@ def build_chip_tab() -> html.Div:
             html.Div(id="state-chip-summary", className="kpi-grid compact"),
             html.Div(id="state-chip-interpretation", className="policy-note wide"),
             html.Div(
-                className="policy-note wide",
+                className="panel financing-context-panel",
                 children=[
-                    html.H2("Medicaid Vs CHIP Interpretation"),
-                    html.P(
-                        "Combined Medicaid/CHIP enrollment supports overall coverage monitoring. Separate Medicaid "
-                        "and CHIP views help identify which program contributes to state-level changes. Contribution "
-                        "metrics are descriptive and do not estimate policy effects."
+                    html.Div(
+                        className="chart-card-header",
+                        children=[
+                            html.Div(
+                                children=[
+                                    html.H2(f"Federal financing context · FY{FINANCING_FISCAL_YEAR}"),
+                                    html.P(
+                                        "FMAP and multipliers describe federal-state financing context. "
+                                        "They help explain funding structure, not monthly enrollment movement by themselves."
+                                    ),
+                                ]
+                            )
+                        ],
                     ),
+                    html.Div(id="chip-financing-cards"),
+                ],
+            ),
+            html.Div(
+                className="panel chip-structure-panel",
+                children=[
+                    html.Div(
+                        className="chart-card-header",
+                        children=[
+                            html.Div(
+                                children=[
+                                    html.H2("CHIP program design by state"),
+                                    html.P(
+                                        "Categorical Medicaid.gov view of whether states operate separate CHIP, "
+                                        "Medicaid expansion CHIP, or both."
+                                    ),
+                                ]
+                            )
+                        ],
+                    ),
+                    html.Div(id="chip-structure-selected"),
+                    chip_structure_legend(),
+                    dcc.Graph(id="chip-structure-map", config={"displayModeBar": False}),
+                ],
+            ),
+            html.Div(
+                className="policy-note wide source-note-compact",
+                children=[
+                    html.P(
+                        "Sources: KFF State Health Facts FMAP/eFMAP; Medicaid.gov CHIP program structure. "
+                        "Accessed 2026-06-22."
+                    ),
+                ],
+            ),
+        ],
+    )
+
+
+def build_program_context_tab() -> html.Div:
+    return html.Div(
+        className="tab-page",
+        children=[
+            section_header(
+                "Medicaid & CHIP Program Context",
+                "Are enrollment changes concentrated in Medicaid, CHIP, or both?",
+                "",
+            ),
+            html.Div(
+                className="chip-page-controls",
+                children=[
+                    html.Label(
+                        children=[
+                            html.Span("Select a state"),
+                            dcc.Dropdown(
+                                id="chip-state-selector",
+                                options=sorted_states(state_rows),
+                                value=DEFAULT_STATE_A,
+                                clearable=False,
+                            ),
+                        ]
+                    )
+                ],
+            ),
+            html.Div(id="chip-kpi-summary", className="kpi-grid compact chip-kpi-row"),
+            html.Div(
+                className="two-column chip-main-grid",
+                children=[
+                    html.Div(
+                        className="panel chip-analysis-card",
+                        children=[
+                            html.Div(
+                                className="chart-card-header",
+                                children=[
+                                    html.Div(
+                                        children=[
+                                            html.H2("Current enrollment split"),
+                                            html.P("National and selected-state Medicaid/CHIP shares in the latest reporting month."),
+                                        ]
+                                    )
+                                ],
+                            ),
+                            dcc.Graph(id="chip-current-split", config={"displayModeBar": False}),
+                        ],
+                    ),
+                    html.Div(
+                        className="panel chip-analysis-card",
+                        children=[
+                            html.Div(
+                                className="chart-card-header",
+                                children=[
+                                    html.Div(
+                                        children=[
+                                            html.H2("What changed?"),
+                                            html.P("Signed component changes and each program's share of absolute enrollment movement."),
+                                        ]
+                                    ),
+                                    dcc.RadioItems(
+                                        id="chip-change-period",
+                                        options=[
+                                            {"label": "Latest month", "value": "latest_month"},
+                                            {"label": "Since Jan. 2019", "value": "since_baseline"},
+                                            {"label": "Since peak", "value": "since_peak"},
+                                        ],
+                                        value="latest_month",
+                                        inline=True,
+                                        className="segmented-control",
+                                    ),
+                                ],
+                            ),
+                            html.Div(id="chip-change-values"),
+                            dcc.Graph(id="chip-change-contribution", config={"displayModeBar": False}),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className="two-column chip-support-grid",
+                children=[
+                    html.Div(
+                        className="panel financing-context-panel",
+                        children=[
+                            html.Div(
+                                className="chart-card-header",
+                                children=[
+                                    html.Div(
+                                        children=[
+                                            html.H2(f"Federal financing context · FY{FINANCING_FISCAL_YEAR}"),
+                                            html.P("Financing context, not a monthly enrollment driver by itself."),
+                                        ]
+                                    )
+                                ],
+                            ),
+                            html.Div(id="chip-financing-cards"),
+                        ],
+                    ),
+                    html.Div(
+                        className="panel chip-structure-panel",
+                        children=[
+                            html.Div(
+                                className="chart-card-header",
+                                children=[
+                                    html.Div(
+                                        children=[
+                                            html.H2("CHIP program design by state"),
+                                            html.P("Categorical Medicaid.gov structure. Click a state to update the page."),
+                                        ]
+                                    )
+                                ],
+                            ),
+                            html.Div(id="chip-structure-selected"),
+                            chip_structure_legend(),
+                            dcc.Graph(id="chip-structure-map", config={"displayModeBar": False}),
+                        ],
+                    ),
+                ],
+            ),
+            html.Div(
+                className="policy-note wide source-note-compact",
+                children=[
+                    html.P("Sources: Medicaid.gov monthly enrollment files; KFF State Health Facts FMAP/eFMAP; Medicaid.gov CHIP program structure."),
                 ],
             ),
         ],
@@ -2447,7 +4622,7 @@ def build_about_tab() -> html.Div:
 	                            html.Li("MACPAC for Medicaid/CHIP and children's coverage context."),
 	                        ]
 	                    ),
-	                    html.P("These sources provide context for interpreting major enrollment periods. Dashboard metrics remain based on CMS/Data.Medicaid.gov."),
+	                    html.P("Timeline sources provide policy and reporting context only. Dashboard metrics remain derived from CMS/Data.Medicaid.gov."),
 	                ],
 	            ),
         ],
@@ -2477,19 +4652,12 @@ app.layout = html.Div(
             className="tabs",
             children=[
                 dcc.Tab(label="National Snapshot", value="overview", children=build_overview_tab()),
-                dcc.Tab(label="State Map Explorer", value="maps", children=build_maps_tab()),
-                dcc.Tab(label="Medicaid vs CHIP Drivers", value="chip", children=build_chip_tab()),
-                dcc.Tab(label="Eligibility Operations", value="operations", children=build_operations_tab()),
-                dcc.Tab(label="Monitoring Flags", value="monitoring", children=build_monitoring_tab()),
-                dcc.Tab(label="Methods & Limits", value="about", children=build_about_tab()),
+                dcc.Tab(label="State Comparison Explorer", value="maps", children=build_maps_tab()),
             ],
         ),
         html.Footer(
             className="app-footer",
-            children=(
-                "Built from official CMS/Data.Medicaid.gov public aggregate data. Latest-month values may be preliminary. "
-                "Descriptive monitoring only; not beneficiary-level or causal policy evaluation."
-            ),
+            children="© 2026 Caroline Howard & Prashant Shekhar",
         ),
     ],
 )
@@ -2502,13 +4670,11 @@ app.layout = html.Div(
     Output("kpi-latest", "className"),
     Output("kpi-change-baseline", "className"),
     Output("kpi-change-peak", "className"),
-    Output("kpi-operations", "className"),
     Input("kpi-baseline", "n_clicks"),
     Input("kpi-peak", "n_clicks"),
     Input("kpi-latest", "n_clicks"),
     Input("kpi-change-baseline", "n_clicks"),
     Input("kpi-change-peak", "n_clicks"),
-    Input("kpi-operations", "n_clicks"),
 )
 def update_national_kpi_details(*_clicks):
     if not ctx.triggered_id:
@@ -2524,8 +4690,8 @@ def update_national_kpi_details(*_clicks):
     Input("timeline-growth", "n_clicks"),
     Input("timeline-unwinding", "n_clicks"),
     Input("timeline-variation", "n_clicks"),
-    Input("timeline-stabilization", "n_clicks"),
-    Input("timeline-recent", "n_clicks"),
+    Input("timeline-renewals", "n_clicks"),
+    Input("timeline-reporting", "n_clicks"),
 )
 def update_timeline_detail(*_clicks):
     if not ctx.triggered_id:
@@ -2571,200 +4737,98 @@ def update_overview_state_from_map(click_data: dict | None):
 
 
 @app.callback(
-    Output("map-title", "children"),
-    Output("map-subtitle", "children"),
-    Output("state-map", "figure"),
-    Output("state-ranking-chart", "figure"),
-    Output("state-profile", "children"),
-    Output("raw-map-note", "children"),
-    Output("selected-map-month", "children"),
+    Output("comparison-lineup", "children"),
+    Output("comparison-difference-text", "children"),
+    Output("comparison-month-status", "children"),
+    Output("comparison-trend-chart", "figure"),
+    Output("ranking-modal-title", "children"),
+    Output("ranking-modal-body", "children"),
+    Output("state-comparison-summary", "children"),
+    Output("state-comparison-status", "children"),
     Output("state-self-comparison", "children"),
+    Input("within-state-view", "value"),
     Input("map-metric", "value"),
-    Input("state-selector", "value"),
-    Input("map-month-slider", "value"),
-    Input("map-ranking-view", "value"),
+    Input("state-a-selector", "value"),
+    Input("state-b-selector", "value"),
+    Input("map-month-value", "value"),
+    Input("fiscal-year-selector", "value"),
 )
-def update_map(metric_key: str, selected_state: str, month_index: int, ranking_view: str):
-    if metric_key not in MAP_METRICS:
+def update_map(
+    within_state_view: str,
+    metric_key: str,
+    state_a: str,
+    state_b: str,
+    reporting_month: str,
+    fiscal_year: str,
+):
+    if within_state_view not in {
+        "enrollment_history",
+        "eligibility_enrollment_context",
+        "expenditure_context",
+    }:
+        within_state_view = "enrollment_history"
+    if metric_key not in TWO_STATE_COMPARISON_METRIC_KEYS or metric_key not in MAP_METRICS:
         metric_key = "medicaid_chip_enrollment_per_1000_residents"
-    if selected_state not in state_lookup:
-        selected_state = "CA"
-    if month_index is None or month_index < 0 or month_index >= len(MONTH_VALUES):
-        month_index = len(MONTH_VALUES) - 1
-    reporting_month = MONTH_VALUES[month_index]
-    if ranking_view not in {"top10", "bottom10", "all"}:
-        ranking_view = "top10"
-    title, subtitle = map_title(metric_key, reporting_month)
-    raw_note = (
-        "Raw enrollment counts are affected by state population size. Use population-adjusted metrics for relative state comparison."
-        if MAP_METRICS[metric_key]["raw"]
-        else "This metric uses population or enrollment denominators for descriptive comparison; it is not a utilization or performance rate."
-    )
+    if state_a not in state_lookup:
+        state_a = DEFAULT_STATE_A
+    if state_b not in state_lookup or state_b == state_a:
+        state_b = DEFAULT_STATE_B if DEFAULT_STATE_B != state_a else next(
+            row["value"] for row in sorted_states(state_rows) if row["value"] != state_a
+        )
+    if reporting_month not in MONTH_VALUES:
+        reporting_month = LATEST_RELIABLE_MONTH_VALUE
+    if fiscal_year not in FISCAL_YEAR_VALUES:
+        fiscal_year = LATEST_FISCAL_YEAR_VALUE
     return (
-        title,
-        subtitle,
-        build_map(metric_key, selected_state, reporting_month),
-        ranking_bar(metric_key, reporting_month, ranking_view, selected_state),
-        build_state_profile(selected_state, reporting_month),
-        raw_note,
-        month_label(reporting_month),
-        selected_state_self_comparison(selected_state),
+        comparison_dot_lineup(metric_key, reporting_month, state_a, state_b),
+        difference_summary_text(metric_key, reporting_month, state_a, state_b),
+        comparison_month_status(reporting_month),
+        compare_trend_figure(metric_key, state_a, state_b, reporting_month),
+        f"Full national ranking table · {map_metric_dropdown_label(RANK_STRIP_METRIC_KEY)} · {month_label(reporting_month)}",
+        ranking_table_component(metric_key, reporting_month, state_a, state_b),
+        build_state_comparison_summary(state_a, state_b, reporting_month, metric_key),
+        build_comparison_status_row(state_a, state_b, reporting_month, metric_key),
+        build_within_state_section(state_a, state_b, reporting_month, within_state_view, fiscal_year),
     )
+
+
+@app.callback(
+    Output("section3-fiscal-controls", "className"),
+    Input("within-state-view", "value"),
+)
+def toggle_section3_fiscal_controls(selected_view: str) -> str:
+    if selected_view == "expenditure_context":
+        return "section3-fiscal-controls"
+    return "section3-fiscal-controls is-hidden"
+
+
+@app.callback(
+    Output("ranking-modal", "className"),
+    Input("ranking-modal-open", "n_clicks"),
+    Input("ranking-modal-close", "n_clicks"),
+    Input("ranking-modal-backdrop", "n_clicks"),
+)
+def toggle_ranking_modal(open_clicks: int, close_clicks: int, backdrop_clicks: int) -> str:
+    trigger = ctx.triggered_id
+    if trigger == "ranking-modal-open":
+        return "ranking-modal is-open"
+    return "ranking-modal"
 
 
 @app.callback(
     Output("state-selector", "value"),
-    Input("state-map", "clickData"),
-    Input("state-ranking-chart", "clickData"),
-    prevent_initial_call=True,
+    Input("state-a-selector", "value"),
 )
-def select_state_from_visuals(map_click, bar_click):
-    from dash import callback_context
-
-    trigger = callback_context.triggered[0]["prop_id"] if callback_context.triggered else ""
-    click_data = bar_click if trigger.startswith("state-ranking-chart") else map_click
-    if click_data and click_data.get("points"):
-        point = click_data["points"][0]
-        state = point.get("customdata") or point.get("location")
-        if state in state_lookup:
-            return state
-    return "CA"
-
-
-@app.callback(
-    Output("state-chip-split", "figure"),
-    Output("state-chip-trend", "figure"),
-    Output("state-chip-component-summary", "children"),
-    Output("state-chip-summary", "children"),
-    Output("state-chip-interpretation", "children"),
-    Output("state-operations-trend", "figure"),
-    Output("state-operations-summary", "children"),
-    Output("state-balance-trend", "figure"),
-    Output("state-balance-summary", "children"),
-    Input("state-selector", "value"),
-    Input("chip-trend-mode", "value"),
-)
-def update_state_sections(selected_state: str, chip_trend_mode: str):
-    if selected_state not in state_lookup:
-        selected_state = "CA"
-    if chip_trend_mode not in {"raw", "indexed"}:
-        chip_trend_mode = "indexed"
-    selected = state_lookup[selected_state]
-    rows = state_trend_rows(selected_state)
-    story = state_enrollment_story(selected_state)
-    balance = latest_balance_lookup.get(selected_state, {})
-    balance_trend_rows = state_balance_rows(selected_state)
-    chip_split = latest_split_bar(selected_state)
-    chip_rows = chip_trend_rows(rows, chip_trend_mode)
-    latest_row = rows[-1]
-    baseline_row = row_for_state_month(selected_state, BASELINE_MONTH) or rows[0]
-    peak_row = story["peak"]
-    latest_medicaid = to_float(latest_row.get("total_medicaid_enrollment"))
-    latest_chip = to_float(latest_row.get("total_chip_enrollment"))
-    latest_total = to_float(latest_row.get("total_medicaid_and_chip_enrollment"))
-    baseline_medicaid = to_float(baseline_row.get("total_medicaid_enrollment"))
-    baseline_chip = to_float(baseline_row.get("total_chip_enrollment"))
-    medicaid_change = latest_medicaid - baseline_medicaid if latest_medicaid is not None and baseline_medicaid is not None else None
-    chip_change = latest_chip - baseline_chip if latest_chip is not None and baseline_chip is not None else None
-    focus = component_change_focus(medicaid_change, chip_change)
-    chip_fig = chip_component_figure(chip_rows, selected["state_name"], chip_trend_mode)
-    ops_fig = line_figure(
-        rows,
-        [("total_applications_for_financial_assistance_submitted_at_state_level", "Applications submitted"), ("total_medicaid_and_chip_determinations", "Determinations")],
-        f"{selected['state_name']} Applications And Determinations, {month_label(BASELINE_MONTH)}-{latest_month}",
-        "Question: How do same-month applications and determinations compare over time?",
-        "Applications / determinations",
-        scope_label=selected["state_name"],
-        reference_lines=[
-            (POST_PEAK_CONTEXT_MONTH, "April 2023 reference point"),
-            (latest_row["reporting_month"], "Latest month"),
-        ],
-    )
-    balance_fig = line_figure(
-        balance_trend_rows,
-        [("application_determination_balance", "Application-Determination Balance")],
-        f"{selected['state_name']} Application-Determination Balance, {month_label(BASELINE_MONTH)}-{latest_month}",
-        "Applications minus determinations; not backlog, timeliness, approval rate, or performance.",
-        "Applications minus determinations",
-        scope_label=selected["state_name"],
-        reference_lines=[(POST_PEAK_CONTEXT_MONTH, "April 2023 reference point")],
-    )
-    chip_component_summary = [
-        card("Latest Medicaid enrollment", format_value(latest_medicaid), month_label(latest_row["reporting_month"])),
-        card("Latest CHIP enrollment", format_value(latest_chip), month_label(latest_row["reporting_month"])),
-        card("Medicaid share of combined enrollment", format_value(ratio(latest_medicaid, latest_total, 100), "percent"), "Latest state month"),
-        card("CHIP share of combined enrollment", format_value(ratio(latest_chip, latest_total, 100), "percent"), "Latest state month"),
-        card("Medicaid change since Jan. 2019", format_value(medicaid_change, "signed_integer"), format_value(percent_change(latest_medicaid, baseline_medicaid), "percent")),
-        card("CHIP change since Jan. 2019", format_value(chip_change, "signed_integer"), format_value(percent_change(latest_chip, baseline_chip), "percent")),
-    ]
-    chip_summary = [
-        card("Selected state", f"{selected['state_name']} ({selected_state})"),
-        *state_summary_cards(selected_state),
-    ]
-    chip_interpretation = [
-        html.H2(f"What Changed In {selected['state_name']}?"),
-        html.Ul(
-            [
-                html.Li(
-                    f"Combined Medicaid/CHIP enrollment peaked in {month_label(peak_row['reporting_month'])} at {format_value(story['peak_value'])} and was {format_value(story['latest_value'])} in the latest month."
-                ),
-                html.Li(
-                    f"Medicaid enrollment was {format_value(latest_medicaid)} and CHIP enrollment was {format_value(latest_chip)} in {month_label(latest_row['reporting_month'])}."
-                ),
-                html.Li(
-                    f"Most combined enrollment movement appears concentrated in {focus}, based on descriptive component changes since January 2019."
-                ),
-                html.Li("This is descriptive monitoring, not a causal policy estimate."),
-            ]
-        ),
-    ]
-    ops_summary = [
-        card("Applications submitted", format_value(selected["latest_applications_submitted"])),
-        card("Eligibility determinations", format_value(selected["latest_total_determinations"])),
-        card("Applications per 100,000 residents", format_value(selected["applications_submitted_per_100000_residents"], "decimal")),
-        card("Determinations per 100,000 residents", format_value(selected["eligibility_determinations_per_100000_residents"], "decimal")),
-        card("Applications per 1,000 enrollees", format_value(selected["applications_per_1000_enrollees"], "decimal")),
-        card("Determinations per application", format_value(selected["determinations_per_application"], "ratio")),
-    ]
-    balance_summary = [
-        card("Selected state balance", format_value(balance.get("application_determination_balance"), "signed_integer"), "Applications minus determinations"),
-        card("Balance per 100,000 residents", format_value(balance.get("application_determination_balance_per_100000_residents"), "decimal"), "Population-adjusted context"),
-        card("Applications submitted", format_value(balance.get("applications_submitted")), "Latest month"),
-        card("Eligibility determinations", format_value(balance.get("total_medicaid_chip_determinations")), "Latest month"),
-        card("Determinations per application", format_value(balance.get("determinations_per_application"), "ratio"), "Descriptive relationship"),
-    ]
-    return chip_split, chip_fig, chip_component_summary, chip_summary, chip_interpretation, ops_fig, ops_summary, balance_fig, balance_summary
-
-
-@app.callback(
-    Output("flags-by-state", "figure"),
-    Output("flags-by-month", "figure"),
-    Output("monitoring-flags-table", "children"),
-    Input("monitoring-state-filter", "value"),
-    Input("monitoring-flag-filter", "value"),
-)
-def update_monitoring_flags(selected_state: str, flag_type: str):
-    filtered = monitoring_flag_rows
-    if selected_state and selected_state != "ALL":
-        filtered = [row for row in filtered if row["state_abbreviation"] == selected_state]
-    if flag_type and flag_type != "ALL":
-        filtered = [row for row in filtered if row["flag_type"] == flag_type]
-
-    if not filtered:
-        empty_fig = go.Figure()
-        empty_fig.update_layout(
-            title="No review flags match the selected filters",
-            paper_bgcolor="white",
-            plot_bgcolor="white",
-        )
-        return empty_fig, empty_fig, html.P("No review flags match the selected filters.")
-
-    return (
-        flag_count_bar(filtered, "state_abbreviation", "Review Flags By State"),
-        flag_count_bar(filtered, "reporting_month", "Review Flags By Month"),
-        monitoring_table(filtered),
-    )
+def sync_primary_state(state_a: str):
+    if state_a in state_lookup:
+        return state_a
+    return DEFAULT_STATE_A
 
 
 if __name__ == "__main__":
-    app.run(debug=False, host="127.0.0.1", port=8050, use_reloader=False)
+    app.run(
+        debug=False,
+        host="0.0.0.0",
+        port=int(os.environ.get("PORT", 8050)),
+        use_reloader=False,
+    )

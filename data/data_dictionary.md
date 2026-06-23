@@ -1,33 +1,110 @@
 # Data Dictionary
 
-This data dictionary describes fields preserved in the cleaned 2019-present state-month dataset created from the official CMS/Data.Medicaid.gov State Medicaid and CHIP Applications, Eligibility Determinations, and Enrollment Data source.
+This data dictionary summarizes the key source files, processed files, dashboard-ready tables, and important variables used in the Medicaid Enrollment & Eligibility Operations Analytics project.
+
+## Key Source And Context Files
+
+| file | purpose | notes |
+|---|---|---|
+| `data/raw/pi-dataset-may-2026-release.csv` | Raw CMS/Data.Medicaid.gov Medicaid/CHIP applications, determinations, and enrollment extract | Raw files are excluded from Git. The processed outputs are used by the app. |
+| `data/processed/medicaid_enrollment_clean.csv` | Cleaned state-month CMS data | Core file for enrollment, applications, determinations, and reporting status. |
+| `data/processed/medicaid_state_month_summary.csv` | State-month summary table | Used for analysis and dashboard table builds. |
+| `data/processed/state_population_denominators.csv` | Census state population denominators | Used for descriptive population-adjusted metrics. |
+| `data/manual/state_demographic_context_candidates.csv` | Medicaid.gov State Profiles context and MAGI eligibility thresholds | Labeled in the app as eligibility and enrollment context, not demographics. |
+| `data/manual/state_expenditure_context_candidates.csv` | Medicaid.gov MBES/CBES fiscal-year expenditure context | Used for fiscal profile summaries. |
+| `data/context/kff_medicaid_fmap_multiplier.csv` | KFF Medicaid FMAP and multiplier context | Retained as financing context. |
+| `data/context/kff_chip_efmap.csv` | KFF CHIP enhanced FMAP context | Retained as financing context. |
+| `data/context/chip_program_structure.csv` | Medicaid.gov CHIP program structure categories | Retained as CHIP structure context. |
+
+## Core Cleaned Monthly Fields
 
 | field_name | plain_language_definition | source_field_name | data_type | notes |
 |---|---|---|---|---|
-| state_abbreviation | Two-letter state or DC abbreviation. | State Abbreviation | string | Includes all 50 states plus DC. |
-| state_name | Full state or DC name. | State Name | string | Standardized by trimming whitespace. |
-| reporting_period | Source reporting period in YYYYMM format. | Reporting Period | integer | Retained from source for traceability. |
-| reporting_month | Month-start date parsed from reporting period. | Reporting Period | date | Used for monthly trend analysis. |
-| reporting_year | Calendar year derived from reporting month. | Reporting Period | integer | Derived field for filtering and grouping. |
-| state_expanded_medicaid | Whether the state had expanded Medicaid as of the reporting period. | State Expanded Medicaid | string | Source uses Y/N values. |
-| preliminary_or_updated | Whether the source record is preliminary or updated. | Preliminary or Updated | string | Source uses P for preliminary and U for updated. |
-| final_report | Whether the source record is final. | Final Report | string | Source uses Y/N. Cleaning prefers final/updated records when duplicates exist. |
-| new_applications_submitted_to_medicaid_and_chip_agencies | Applications received by Medicaid and CHIP agencies during the month, excluding FFM transfers. | New Applications Submitted to Medicaid and CHIP Agencies | numeric | Application volume measure. |
-| applications_for_financial_assistance_submitted_to_the_state_based_marketplace | Applications requesting financial assistance received by a State-Based Marketplace during the month. | Applications for Financial Assistance Submitted to the State Based Marketplace | numeric | May be zero or not applicable for some states/months. |
-| total_applications_for_financial_assistance_submitted_at_state_level | Total state-level applications for financial assistance received by Medicaid, CHIP, and State-Based Marketplace agencies where applicable. | Total Applications for Financial Assistance Submitted at State Level | numeric | Application volume measure. |
-| individuals_determined_eligible_for_medicaid_at_application | Individuals determined eligible for Medicaid at application during the month. | Individuals Determined Eligible for Medicaid at Application | numeric | Eligibility operations measure. |
-| individuals_determined_eligible_for_chip_at_application | Individuals determined eligible for CHIP at application during the month. | Individuals Determined Eligible for CHIP at Application | numeric | Eligibility operations measure. |
-| total_medicaid_and_chip_determinations | Total Medicaid and CHIP eligible determinations at application during the month. | Total Medicaid and CHIP Determinations | numeric | Sum of Medicaid and CHIP determinations in the source. |
-| medicaid_and_chip_child_enrollment | Point-in-time child Medicaid plus CHIP enrollment count at month end. | Medicaid and CHIP Child Enrollment | numeric | CHIP may include adults in some states, so this is not strictly children in every state. |
-| total_medicaid_and_chip_enrollment | Point-in-time total Medicaid or CHIP enrollment at month end. | Total Medicaid and CHIP Enrollment | numeric | Core enrollment trend measure. |
-| total_medicaid_enrollment | Point-in-time total Medicaid enrollment at month end. | Total Medicaid Enrollment | numeric | Core enrollment trend measure. |
-| total_chip_enrollment | Point-in-time total CHIP enrollment at month end. | Total CHIP Enrollment | numeric | CHIP may include adults in some states. |
-| total_adult_medicaid_enrollment | Point-in-time adult Medicaid enrollment at month end. | Total Adult Medicaid Enrollment | numeric | Substantial missingness; use with caution. |
-| total_medicaid_and_chip_determinations_processed_in_less_than_24_hours | MAGI application determinations processed in less than 24 hours. | Total Medicaid and CHIP Determinations Processed in Less than 24 Hours | numeric | Processing-time field; substantial missingness. |
-| total_medicaid_and_chip_determinations_processed_between_24_hours_and_7_days | MAGI application determinations processed between 24 hours and 7 days. | Total Medicaid and CHIP Determinations Processed Between 24 Hours and 7 Days | numeric | Processing-time field; substantial missingness. |
-| total_medicaid_and_chip_determinations_processed_between_8_days_and_30_days | MAGI application determinations processed between 8 and 30 days. | Total Medicaid and CHIP Determinations Processed Between 8 Days and 30 Days | numeric | Processing-time field; substantial missingness. |
-| total_medicaid_and_chip_determinations_processed_between_31_days_and_45_days | MAGI application determinations processed between 31 and 45 days. | Total Medicaid and CHIP Determinations Processed between 31 days and 45 days | numeric | Processing-time field; substantial missingness. |
-| total_medicaid_and_chip_determinations_processed_in_more_than_45_days | MAGI application determinations processed in more than 45 days. | Total Medicaid and CHIP Determinations Processed in More than 45 Days | numeric | Processing-time field; substantial missingness. |
-| total_call_center_volume_number_of_calls | Total calls received by Medicaid/CHIP-serving call centers or hotlines. | Total Call Center Volume (Number of Calls) | numeric | Substantial missingness; call centers may serve other state human services programs. |
-| average_call_center_wait_time_minutes | Average call center wait time in whole minutes. | Average Call Center Wait Time (Minutes) | numeric | Substantial missingness; rounded according to source rules. |
-| average_call_center_abandonment_rate | Average call center abandonment rate. | Average Call Center Abandonment Rate | numeric | Substantial missingness; source-defined ratio. |
+| `state_abbreviation` | Two-letter state or DC abbreviation. | State Abbreviation | string | Includes all 50 states plus DC. |
+| `state_name` | Full state or DC name. | State Name | string | Standardized for dashboard display. |
+| `reporting_period` | Source reporting period in YYYYMM format. | Reporting Period | integer | Retained for traceability. |
+| `reporting_month` | Month-start date parsed from reporting period. | Reporting Period | date | Used for monthly trend analysis. |
+| `reporting_year` | Calendar year derived from reporting month. | Reporting Period | integer | Derived field. |
+| `state_expanded_medicaid` | Whether the state had expanded Medicaid as reported in the source. | State Expanded Medicaid | string | Source uses Y/N values. |
+| `preliminary_or_updated` | Whether the source record is preliminary or updated. | Preliminary or Updated | string | Source uses P or U values. |
+| `final_report` | Whether the source record is final. | Final Report | string | Used in source-quality interpretation. |
+| `total_medicaid_and_chip_enrollment` | Total Medicaid/CHIP enrollment at month end. | Total Medicaid and CHIP Enrollment | numeric | Core enrollment trend measure. |
+| `total_medicaid_enrollment` | Medicaid enrollment at month end. | Total Medicaid Enrollment | numeric | Used for Medicaid vs CHIP composition. |
+| `total_chip_enrollment` | CHIP enrollment at month end. | Total CHIP Enrollment | numeric | CHIP program design varies by state. |
+| `medicaid_and_chip_child_enrollment` | Child Medicaid plus CHIP enrollment count at month end. | Medicaid and CHIP Child Enrollment | numeric | CHIP may include different structures by state. |
+| `total_adult_medicaid_enrollment` | Adult Medicaid enrollment at month end. | Total Adult Medicaid Enrollment | numeric | High missingness; not a headline KPI. |
+| `new_applications_submitted_to_medicaid_and_chip_agencies` | New applications submitted to Medicaid and CHIP agencies during the month. | New Applications Submitted to Medicaid and CHIP Agencies | numeric | Descriptive operations indicator. |
+| `total_applications_for_financial_assistance_submitted_at_state_level` | Total state-level applications for financial assistance. | Total Applications for Financial Assistance Submitted at State Level | numeric | May include state-based marketplace application activity where applicable. |
+| `individuals_determined_eligible_for_medicaid_at_application` | Medicaid eligibility determinations at application. | Individuals Determined Eligible for Medicaid at Application | numeric | Descriptive operations indicator. |
+| `individuals_determined_eligible_for_chip_at_application` | CHIP eligibility determinations at application. | Individuals Determined Eligible for CHIP at Application | numeric | Descriptive operations indicator. |
+| `total_medicaid_and_chip_determinations` | Total Medicaid and CHIP eligibility determinations at application. | Total Medicaid and CHIP Determinations | numeric | Not an approval rate or timeliness metric. |
+
+## Derived Dashboard Fields
+
+| field_name | plain_language_definition | source_field_name | data_type | notes |
+|---|---|---|---|---|
+| `change_since_january_2019` | Change in total Medicaid/CHIP enrollment compared with January 2019. | Derived | numeric | Used for state and national descriptive trend context. |
+| `percent_change_since_january_2019` | Percent change in total Medicaid/CHIP enrollment compared with January 2019. | Derived | numeric | Percent values are represented as 0-100 in dashboard tables. |
+| `change_from_peak` | Change from a state's observed peak enrollment to the selected/latest month. | Derived | numeric | Declines from peak are descriptive, not causal. |
+| `percent_change_from_peak` | Percent change from observed peak enrollment. | Derived | numeric | Used for comparison and profile context. |
+| `medicaid_share` | Medicaid enrollment divided by total Medicaid/CHIP enrollment. | Derived | numeric | Program mix context. |
+| `chip_share` | CHIP enrollment divided by total Medicaid/CHIP enrollment. | Derived | numeric | Program mix context. |
+| `applications_per_100000_residents` | Applications submitted per 100,000 state residents. | Derived | numeric | Population-adjusted context, not a usage rate. |
+| `eligibility_determinations_per_100000_residents` | Eligibility determinations per 100,000 state residents. | Derived | numeric | Population-adjusted context, not a performance score. |
+| `determinations_per_application` | Determinations divided by applications. | Derived | numeric | Descriptive same-month ratio; not an approval rate. |
+| `application_determination_balance` | Applications submitted minus determinations completed in the same month. | Derived | numeric | Descriptive workflow context; not a backlog metric. |
+
+## Eligibility And Enrollment Context Fields
+
+The file `data/manual/state_demographic_context_candidates.csv` contains standardized context rows from Medicaid.gov State Profiles and related source files. It should be labeled as eligibility and enrollment context in the dashboard.
+
+Important row types include:
+
+- current Medicaid/CHIP enrollment context
+- previous-month enrollment context
+- month-to-month change context
+- change from July-September 2013 baseline where available
+- Medicaid expansion status
+- marketplace type
+- MAGI eligibility thresholds for children, pregnant women, parents, and other adults
+
+Eligibility thresholds describe program rules. They are not observed enrollee demographic shares.
+
+## Fiscal Profile Fields
+
+The file `data/manual/state_expenditure_context_candidates.csv` contains fiscal-year MBES/CBES financial reporting context.
+
+Core rows used for fiscal profile summaries:
+
+- Medicaid Program - Total Net Expenditures
+- Medicaid Administration - Total Net Expenditures
+- CHIP - Total
+
+Important fields:
+
+| field_name | plain_language_definition | notes |
+|---|---|---|
+| `fiscal_year` | Federal fiscal year for the expenditure record. | FY2019-FY2024 are used in current review files. |
+| `program_category` | Medicaid Program, Medicaid Administration, CHIP, or supplemental categories. | Main fiscal profile uses only the three core categories. |
+| `expenditure_category` | Source expenditure category. | Total Net Expenditures or Total for the main summary. |
+| `expenditure_amount` | Extracted expenditure amount. | Fiscal-year financial reporting value, not monthly enrollment. |
+| `source_file` | MBES/CBES report file used. | Retained for traceability. |
+
+## High-Missingness Or Limited-Interpretability Fields
+
+These source fields should not be used as headline dashboard KPIs without additional validation:
+
+- adult Medicaid enrollment
+- call center volume
+- call center wait time
+- call center abandonment rate
+- application processing-time categories
+- renewals/redeterminations, because dedicated fields are not available in the selected extract
+- pending applications, because dedicated fields are not available in the selected extract
+
+## Reporting Notes
+
+- Preliminary records can change in later CMS releases.
+- Updated/final reporting status varies by state and month.
+- Public aggregate data support monitoring and context, not causal policy claims.
+- Missing values are not fabricated or imputed.

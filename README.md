@@ -1,256 +1,238 @@
-# Medicaid Enrollment Policy Dashboard
+# Medicaid Enrollment & Eligibility Operations Analytics
 
-## About
+## Portfolio Summary
 
-A healthcare policy analytics project that reviews official Medicaid/CHIP enrollment and eligibility operations data, validates source quality, and builds a descriptive monitoring workflow for state-level policy and operations context.
+This portfolio project uses official public Medicaid/CHIP enrollment and eligibility operations data to build a descriptive healthcare policy analytics dashboard. The project focuses on source validation, reproducible data preparation, state-level monitoring, policy-aware interpretation, and deployment-ready dashboard reporting.
 
-## Project Summary
+The project is intentionally descriptive. It does not use beneficiary-level data, claims data, utilization data, cost outcomes, or causal inference methods.
 
-This repository reviews official CMS/Data.Medicaid.gov Medicaid and CHIP enrollment and eligibility operations data to monitor state-level enrollment trends, application and determination patterns, population-adjusted context, data quality issues, and changes that may warrant further policy or operations review.
+Live dashboard: pending Plotly Cloud deployment  
+GitHub repository: https://github.com/caroline-howard/medicaid-enrollment-policy-dashboard
 
-The project emphasizes source review, reproducible documentation, data validation, diagnostic monitoring indicators, and policy-facing interpretation. It is descriptive and monitoring-focused; it does not make causal claims.
+## Project Purpose
 
-Current status: Diagnostic monitoring workflow, population-adjusted state context, dashboard-ready tables, and Plotly Dash Version 1 are complete.
+Medicaid and CHIP enrollment changes can reflect policy rules, administrative processes, renewal activity, economic conditions, program design, and reporting practices. This project turns public aggregate data into a structured monitoring tool that helps users review:
 
-## Why Medicaid Enrollment And Eligibility Operations Matter
+- national Medicaid/CHIP enrollment patterns
+- state-by-state enrollment variation
+- applications and eligibility determinations
+- Medicaid vs CHIP composition
+- population-adjusted state context
+- fiscal-year expenditure context
+- data quality and reporting limitations
 
-Medicaid and CHIP enrollment data helps analysts, policy teams, and public-sector decision makers understand how coverage access changes over time. Eligibility operations measures can provide important context about application processing, renewals, procedural outcomes, and administrative workload. Together, these data can support better reporting, policy interpretation, and operational monitoring.
+## Intended Audience And Target Roles
 
-## Intended Use
+This project is designed for portfolio review by hiring managers and teams hiring for:
 
-This project is designed for source-aware public reporting and exploratory monitoring. It can help analysts, policy teams, and operations stakeholders review:
+- healthcare data analyst roles
+- healthcare business analyst roles
+- Medicaid policy or healthcare research roles
+- healthcare operations analyst roles
+- public-sector data analyst roles
 
-- state-level Medicaid/CHIP enrollment shifts
-- Medicaid vs CHIP enrollment context
-- applications and eligibility determinations activity
-- population-adjusted state comparisons
-- data quality and reporting caveats
-- neutral review flags that may warrant follow-up review
+It demonstrates public healthcare data ingestion, source documentation, dashboard-ready table design, policy-facing interpretation, and responsible limitations language.
 
-## Selected Data Source
+## Relevance For Medicaid Policy And Program Evaluation Roles
 
-This project uses the official CMS/Data.Medicaid.gov dataset:
+This project is especially relevant to Medicaid policy, healthcare research, and program evaluation support roles because it demonstrates how public program data can be collected, reviewed, documented, analyzed, and translated into charts, tables, and concise interpretation for policy audiences.
+
+The workflow aligns with applied healthcare research tasks such as:
+
+- reviewing official Medicaid/CHIP program data sources
+- preparing reproducible quantitative data summaries
+- creating dashboard-ready tables, charts, and written findings
+- documenting data quality, missingness, and reporting caveats
+- translating analytic outputs for policymakers, payers, providers, and healthcare program stakeholders
+- keeping interpretation honest when data support monitoring but not causal conclusions
+
+## Official Data Sources
+
+Primary CMS/Data.Medicaid.gov source:
 
 - [State Medicaid and CHIP Applications, Eligibility Determinations, and Enrollment Data](https://data.medicaid.gov/dataset/6165f45b-ca93-5bb5-9d06-db29c692a360/data)
-- CSV download used by the ingestion script: `https://download.medicaid.gov/data/pi-dataset-may-2026-release.csv`
-- Reporting grain: monthly state-level aggregate data
-- Scope after cleaning: all 50 states plus DC, January 2019 through February 2026
+- CSV extract used by the ingestion workflow: `https://download.medicaid.gov/data/pi-dataset-may-2026-release.csv`
+- Grain: monthly state-level aggregate records
+- Cleaned dashboard scope: all 50 states plus DC, January 2019 through February 2026
 
-The dashboard also uses an official U.S. Census Bureau state population denominator source:
+Additional context sources used in local review files and dashboard context tabs:
 
-- [Annual Estimates of the Resident Population: April 1, 2020 to July 1, 2024 (NST-EST2024-POP)](https://www2.census.gov/programs-surveys/popest/tables/2020-2024/state/totals/NST-EST2024-POP.xlsx)
-- Latest denominator year used in Version 1: 2024
-- Population-adjusted measures are descriptive context only and should not be described as healthcare utilization or usage rates.
+- U.S. Census Bureau state population estimates for population-adjusted metrics
+- Medicaid.gov State Profiles context files for enrollment and eligibility threshold context
+- Medicaid.gov MBES/CBES Financial Management Report files for fiscal-year expenditure context
+- KFF State Health Facts FMAP/eFMAP files and Medicaid.gov CHIP program structure files retained in `data/context/`
 
-The raw CMS CSV is downloaded to `data/raw/`, which is excluded from Git. Processed, lightweight CSV outputs are saved in `data/processed/`.
+## Main Reporting Questions
 
-## Ingestion Status
-
-Completed source validation and processing:
-
-- Raw source rows: 10,710
-- Cleaned state-month rows: 4,386
-- States/DC included: 51
-- Reporting months included: 86
-- Cleaned duplicate state-month records: 0
-- Latest available month in this source extract: February 2026
-
-## Available Fields
-
-The processed data preserves:
-
-- state and reporting month fields
-- preliminary/updated and final-report status fields
-- Medicaid enrollment
-- CHIP enrollment
-- total Medicaid/CHIP enrollment
-- child enrollment
-- adult Medicaid enrollment where available
-- applications submitted
-- Medicaid and CHIP eligibility determinations
-- application processing timing fields where available
-- selected call center fields where available
-
-Renewals/redeterminations and pending applications are not preserved because they are not available as dedicated fields in the selected source extract.
-
-## EDA Status
-
-Exploratory analysis is complete for the first dashboard version. The EDA phase created national enrollment trends, state comparison summaries, eligibility operations summaries, data quality summaries, dashboard notes, and static figures for documentation.
-
-Key descriptive findings:
-
-- National Medicaid/CHIP enrollment rose from early 2020 to an April 2023 peak, then declined through the latest available reporting month.
-- February 2026 is the latest available month and is preliminary for all 50 states plus DC.
-- Applications and eligibility determinations support descriptive operations analysis, but they should not be treated as complete performance metrics.
-- Adult enrollment, call center, and processing-time fields have high missingness and should be used cautiously.
+1. How has national Medicaid/CHIP enrollment changed from January 2019 through the latest available reporting month?
+2. How do selected states compare with national enrollment patterns and with each other?
+3. Which state-level metrics are best interpreted as raw counts, rates, shares, or fiscal-year context?
+4. What eligibility operations indicators are available from the public aggregate data?
+5. What can and cannot be claimed from public state-month Medicaid/CHIP reporting data?
 
 ## Dashboard Sections
 
-The redesigned Plotly Dash app includes story-driven tabs:
+The current Plotly Dash app uses two visible top-level sections.
 
-- National Snapshot
-- State Map Explorer
-- Medicaid vs CHIP Drivers
-- Eligibility Operations
-- Monitoring Flags
-- Methods & Limits
+### National Snapshot
 
-The app uses a custom light-gray, white-card, navy/teal/amber visual identity designed for public healthcare policy analytics. The National Snapshot is an executive summary page with KPI cards followed directly by a two-column visualization area: an indexed selected-state vs national Medicaid/CHIP enrollment trend chart and a supporting U.S. choropleth map of state-level percent change since January 2019. The chart indexes both the selected state and national series to January 2019 = 100, uses a selected-state dropdown as its only chart control, and does not include time-range buttons or a bottom range slider. Detailed applications, eligibility determinations, and application-determination balance trends live in the Eligibility Operations tab. Data quality review, missingness checks, excluded fields, and reporting caveats are included in the Methods & Limits tab. The app also includes muted KPI accents, explicit direction arrows, non-clickable badges, expandable policy-facing metric explanations, and range-slider time-series explorers where detailed trend exploration is the goal.
+An executive-style monitoring view for national Medicaid/CHIP enrollment. It includes:
 
-## Planned Analytics Outputs
+- national KPI cards for baseline, peak, latest enrollment, and change from reference points
+- selected-state vs national indexed enrollment trend
+- state-level map context for enrollment change
+- a policy/reporting timeline for interpreting major enrollment trend periods
 
-Planned outputs include:
+### State Comparison Explorer
 
-- Cleaned dashboard tables
-- Source validation summaries
-- Data dictionary updates
-- Trend charts
-- State comparison figures
-- Diagnostic monitoring indicators
-- Neutral state/month review flags
-- Written source notes and limitations
+A state comparison and profile workflow for two selected states. It includes:
 
-Version 1 will focus on policy analytics, data quality, and dashboard reporting. Causal inference, event studies, and forecasting are outside the initial scaffold and may be considered only after validated dashboard-ready data exists.
+- selected-state controls and a national rank strip
+- direct state-to-state comparison table
+- trend-over-time comparison
+- within-state profile tabs:
+  - Enrollment trend
+  - Eligibility context
+  - Fiscal profile
 
-## What This Project Helps Monitor
+The State Comparison Explorer uses state-level aggregate records only. It does not show county-level, beneficiary-level, claims, utilization, diagnosis, or cost-outcome data.
 
-- Enrollment shifts across states
-- Medicaid vs CHIP patterns
-- Applications and determinations activity
-- Application-Determination Balance as a descriptive eligibility operations diagnostic
-- Population-adjusted enrollment context
-- State/month review flags
-- Data quality and reporting caveats
+## Data Pipeline Overview
 
-Review flags are monitoring prompts, not problem labels or performance scores.
+1. Source ingestion: download official CMS/Data.Medicaid.gov Medicaid/CHIP monthly aggregate data.
+2. Cleaning: standardize field names, parse reporting months, standardize state names/abbreviations, and preserve key enrollment and eligibility fields.
+3. Validation: check duplicate state-month rows, missingness, latest-month status, and fields with high missingness.
+4. Dashboard table build: create national trend tables, state comparison tables, population-adjusted metrics, data quality summaries, and state profile context tables.
+5. App rendering: load lightweight CSV outputs from `data/processed/`, `data/manual/`, `data/context/`, and `outputs/dashboard_tables/`.
 
-## Policy Context
+## Key Repository Structure
 
-This dashboard is designed for descriptive monitoring and policy context, not causal policy evaluation. See [docs/policy_context.md](docs/policy_context.md) for plain-language context on Medicaid/CHIP state variation, MAGI eligibility, Medicaid expansion, COVID continuous enrollment and unwinding, applications and determinations, population denominators, and dataset limitations.
+```text
+medicaid-enrollment-policy-dashboard/
+├── app.py
+├── Procfile
+├── requirements.txt
+├── assets/
+│   └── styles.css
+├── data/
+│   ├── context/
+│   ├── manual/
+│   ├── processed/
+│   ├── raw/
+│   └── data_dictionary.md
+├── docs/
+│   ├── project_brief.md
+│   ├── limitations.md
+│   ├── source_notes.md
+│   ├── policy_context.md
+│   └── dashboard_user_guide.md
+├── notebooks/
+├── outputs/
+│   ├── dashboard_tables/
+│   ├── figures/
+│   └── policy_summary.md
+└── src/
+```
 
-The National Snapshot includes an interactive policy timeline that provides context for major Medicaid/CHIP enrollment trend periods. The timeline uses external sources for context only; dashboard metrics remain CMS-derived.
+## Local Run Instructions
 
-## Policy Context Sources
+Create and activate a virtual environment, then install dependencies:
 
-- CMS/Data.Medicaid.gov is the metric source for dashboard tables, KPIs, and visuals.
-- McIntyre et al. (2025), "US Coverage Changes During Medicaid Unwinding in 2023," *JAMA Health Forum*, is used to contextualize unwinding, churn, and net enrollment change.
-- [KFF: 10 Things to Know About Medicaid](https://www.kff.org/medicaid/10-things-to-know-about-medicaid/) is used for broader Medicaid scale and state variation context.
-- [MACPAC: Access in Brief: Children's Experiences in Accessing Medical Care](https://www.macpac.gov/wp-content/uploads/2025/04/Access-in-Brief-Childrens-Experiences-in-Accessing-Medical-Care.pdf) is used for CHIP and children's coverage/access context.
-- These sources do not replace the CMS data and are not used as KPI metric sources.
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
 
-## Processed Outputs Created
-
-- `data/processed/medicaid_enrollment_clean.csv`
-- `data/processed/medicaid_state_month_summary.csv`
-- `data/processed/medicaid_sample_for_dashboard.csv`
-- `data/processed/data_quality_summary.csv`
-- `data/processed/state_population_denominators.csv`
-
-## Dashboard-Ready Tables Created
-
-- `outputs/dashboard_tables/kpi_summary.csv`
-- `outputs/dashboard_tables/national_enrollment_trend.csv`
-- `outputs/dashboard_tables/national_applications_determinations_trend.csv`
-- `outputs/dashboard_tables/state_latest_snapshot.csv`
-- `outputs/dashboard_tables/state_enrollment_change.csv`
-- `outputs/dashboard_tables/state_eligibility_operations_summary.csv`
-- `outputs/dashboard_tables/state_map_metrics.csv`
-- `outputs/dashboard_tables/state_population_adjusted_metrics.csv`
-- `outputs/dashboard_tables/enrollment_change_from_peak.csv`
-- `outputs/dashboard_tables/state_population_adjusted_context.csv`
-- `outputs/dashboard_tables/monitoring_review_flags.csv`
-- `outputs/dashboard_tables/state_monitoring_summary.csv`
-- `outputs/dashboard_tables/national_monitoring_summary.csv`
-- `outputs/dashboard_tables/application_determination_balance.csv`
-- `outputs/dashboard_tables/application_determination_balance_latest.csv`
-- `outputs/dashboard_tables/national_application_determination_balance_trend.csv`
-- `outputs/dashboard_tables/top_application_determination_balance_states.csv`
-- `outputs/dashboard_tables/application_determination_balance_summary.csv`
-- `outputs/dashboard_tables/data_quality_by_field.csv`
-- `outputs/dashboard_tables/data_quality_by_state.csv`
-- `outputs/dashboard_tables/data_quality_by_month.csv`
-- `outputs/dashboard_tables/dashboard_notes.csv`
-
-The `state_map_metrics.csv` table provides one row per state/DC for State Map Explorer context and selected state profile cards.
-
-The Dash app includes a GIS-style State Map Explorer with a linked U.S. choropleth map, ranked horizontal state bar chart, metric selector, reporting-month time control, Top 10/Bottom 10/All ranking control, selected state snapshot, and selected state self-comparison panel. The map uses state-level aggregate data only; it does not create county-level, beneficiary-level, claims, utilization, or cost views.
-
-The selected state self-comparison view shows January 2019 baseline enrollment, peak enrollment, latest enrollment, change since January 2019, change from peak, last-12-month change, Medicaid/CHIP component values, applications, determinations, and Application-Determination Balance where available.
-
-The Medicaid vs CHIP Drivers tab shows national and selected-state Medicaid vs CHIP split views plus a selected-state component trend explorer. The primary component trend view is indexed to January 2019 = 100 so CHIP movement is visible even when Medicaid raw enrollment counts are much larger; a raw-count option remains available for program size context.
-
-Population-adjusted Medicaid/CHIP metrics include enrollment per 1,000 residents, Medicaid enrollment per 1,000 residents, CHIP enrollment per 1,000 residents, applications submitted per 100,000 residents, and eligibility determinations per 100,000 residents.
-
-The Monitoring Flags tab uses `monitoring_review_flags.csv` to help users review unusual state/month changes and reporting caveats. Review flags are context prompts, not problem labels, performance failures, or causal findings.
-
-The project also includes Application-Determination Balance, a descriptive eligibility operations metric comparing same-month applications submitted and Medicaid/CHIP determinations. It is not a backlog metric, approval rate, timeliness measure, or performance score.
-
-## Run The Dash App
+Run the Dash app locally:
 
 ```bash
 python app.py
 ```
 
-Then open `http://127.0.0.1:8050`.
-
-## What This Project Demonstrates
-
-- Reproducible public healthcare data ingestion from official CMS sources
-- Source validation and data dictionary documentation
-- Medicaid/CHIP enrollment trend analysis
-- Eligibility operations reporting using applications and determinations
-- Application-Determination Balance for descriptive operations monitoring
-- State-by-state comparison and dashboard table preparation
-- Population-adjusted enrollment context using official Census denominators
-- Diagnostic monitoring indicators and neutral review flags
-- Data quality, missingness, and preliminary/final reporting checks
-- Policy-facing interpretation without unsupported causal claims
-
-## Repository Structure
+Open:
 
 ```text
-medicaid-enrollment-policy-dashboard/
-├── README.md
-├── app.py
-├── requirements.txt
-├── .gitignore
-├── assets/
-│   └── styles.css
-├── data/
-│   ├── raw/
-│   ├── processed/
-│   └── data_dictionary.md
-├── notebooks/
-│   ├── 01_data_ingestion_and_source_validation.ipynb
-│   ├── 02_eda_and_dashboard_tables.ipynb
-│   └── 03_diagnostic_monitoring_indicators.ipynb
-├── src/
-│   ├── load_data.py
-│   ├── clean_medicaid_data.py
-│   ├── eda_medicaid.py
-│   ├── build_dashboard_tables.py
-│   ├── load_population_data.py
-│   ├── build_population_adjusted_metrics.py
-│   └── build_monitoring_indicators.py
-├── outputs/
-│   ├── dashboard_tables/
-│   └── figures/
-└── docs/
-    ├── source_notes.md
-    ├── project_brief.md
-    ├── project_tasks.md
-    ├── data_viability_and_next_steps.md
-    ├── eda_findings.md
-    ├── population_denominator_notes.md
-    ├── monitoring_questions.md
-    ├── diagnostic_monitoring_plan.md
-    ├── policy_context.md
-    └── limitations.md
+http://127.0.0.1:8050
 ```
 
-## Next Steps
+## Plotly Cloud Deployment Notes
 
-1. Review the expanded Dash app tabs for wording and portfolio presentation.
-2. Add dashboard screenshots to the README after final visual QA.
-3. Consider deployment options such as Render, Railway, or another lightweight Dash hosting target.
-4. Keep forecasting, causal analysis, call center analysis, and processing-time analysis deferred until a separate validation step supports them.
+The app is prepared for a Plotly Cloud-style Dash deployment.
+
+Deployment configuration:
+
+- app entry file: `app.py`
+- server object: `server`
+- start command: `gunicorn app:server --workers 2 --threads 4 --timeout 120`
+- Procfile command: `web: gunicorn app:server --workers 2 --threads 4 --timeout 120`
+
+Before deploying, make sure these paths are pushed to GitHub:
+
+- `app.py`
+- `Procfile`
+- `requirements.txt`
+- `assets/`
+- `outputs/dashboard_tables/`
+- `data/processed/`
+- `data/manual/`
+- `data/context/`
+
+`data/raw/` may remain outside Git. Raw source files can be re-downloaded or documented, while the lightweight processed and dashboard-ready files are needed for the hosted app.
+
+Validation completed before deployment preparation:
+
+- `python -m py_compile app.py`
+- app import smoke test
+- Gunicorn local smoke test returned HTTP 200 OK
+
+## Screenshots
+
+Screenshots will be added after final Plotly Cloud deployment.
+
+- National Snapshot screenshot: pending
+- State Comparison Explorer screenshot: pending
+
+## Limitations And Guardrails
+
+- Public aggregate state-month data cannot describe individual beneficiaries.
+- The dashboard does not include claims, utilization, cost outcomes, diagnoses, provider access, managed care plan performance, or county-level variation.
+- Applications and determinations are descriptive eligibility operations indicators. They are not approval rates, backlog measures, timeliness measures, or performance scores.
+- Population-adjusted metrics provide comparison context but should not be called usage rates.
+- Fiscal profile values are fiscal-year MBES/CBES financial reporting values, not monthly enrollment values.
+- Latest-month data may be preliminary, and reporting practices vary by state.
+- The project supports monitoring and interpretation. It does not estimate causal policy effects.
+
+See [docs/limitations.md](docs/limitations.md) for more detail.
+
+## Resume-Ready Language
+
+General:
+
+- Built a public-data Medicaid/CHIP analytics dashboard using CMS enrollment and eligibility operations data, with reproducible data processing, dashboard-ready tables, and deployment-ready Plotly Dash reporting.
+
+Medicaid policy / healthcare analyst version:
+
+- Developed a Medicaid/CHIP policy monitoring dashboard using official CMS state-month data to compare enrollment trends, eligibility operations indicators, state variation, and public reporting limitations.
+
+Public-sector / business analyst version:
+
+- Created a state comparison dashboard and documentation workflow that translates public Medicaid/CHIP administrative data into clear monitoring views, data quality notes, and decision-ready summaries.
+
+Healthcare policy and research role options:
+
+- Analyzed official public Medicaid/CHIP program data to produce state comparison tables, dashboard visuals, source notes, and limitations language for policy-facing healthcare research communication.
+- Built a reproducible Medicaid/CHIP monitoring workflow in Python and Plotly Dash, including data ingestion, validation, derived metrics, charts, and written interpretation for program evaluation support.
+- Prepared documentation and dashboard outputs that synthesize Medicaid enrollment, eligibility operations, fiscal context, and data quality findings for healthcare policy and public-sector audiences.
+
+## Current Status
+
+Project scaffold, ingestion, validation, dashboard-ready table builds, documentation, and Plotly Dash app development are complete for the current portfolio version. The remaining manual steps are deployment, screenshot capture, and live URL insertion.
+
+## Remaining Manual Steps
+
+1. Push the required deployment folders and files to GitHub.
+2. Deploy the app on Plotly Cloud.
+3. Add the final live dashboard URL to this README.
+4. Capture and add screenshots after deployment.
+5. Optionally convert `docs/project_brief.md` into a short PDF portfolio brief.

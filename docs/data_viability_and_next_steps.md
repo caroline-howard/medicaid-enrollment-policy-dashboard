@@ -135,7 +135,7 @@ Most useful outputs: dashboard-ready summary tables, state comparisons, KPI-styl
 
 Most useful outputs: reproducible ingestion scripts, cleaned state-month dataset, data quality summary, missingness checks, and exploratory trend analysis. This project demonstrates Python, validation, documentation, and dashboard preparation.
 
-### Medicaid Policy/Research Associate
+### Medicaid Policy/Research Roles
 
 Most useful outputs: source notes, limitations, data dictionary, state trend comparisons, and written interpretation. This project supports Medicaid-specific policy monitoring without overstating causal claims.
 

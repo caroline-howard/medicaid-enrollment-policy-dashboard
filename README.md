@@ -4,6 +4,8 @@ A Plotly Dash dashboard for monitoring public Medicaid/CHIP enrollment, eligibil
 
 Live dashboard: https://d54fbb87-f0fd-4ddf-a3b5-56732692c752.plotly.app/
 
+Findings brief: [Medicaid/CHIP Enrollment Divergence After Unwinding, 2019-2026](docs/reports/medicaid_chip_enrollment_divergence_findings_brief.pdf)
+
 ## Contents
 
 - [Project Purpose](#project-purpose)

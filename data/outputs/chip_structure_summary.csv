@@ -1,0 +1,4 @@
+chip_structure_category,number_of_states,median_percent_change_total_jan_2019_to_feb_2026,median_percent_change_medicaid_jan_2019_to_feb_2026,median_percent_change_chip_jan_2019_to_feb_2026,median_peak_to_current_percent_decline_total,number_of_states_below_january_2019_baseline_by_february_2026,percent_of_states_below_january_2019_baseline_by_february_2026,flagged_outlier_states_in_group
+CHIP Medicaid expansion and separate CHIP,39,0.4770015460951276,-0.18178537050438642,9.301599687865782,22.974054907912592,17,43.58974358974359,FL; LA; ME; MI; MO; MT; OK; OR; TX; VA
+CHIP Medicaid expansion only,10,-0.7354348164157359,-1.2860538801188197,21.041599104333702,23.500523376757634,5,50.0,NC
+Separate CHIP only,2,3.5247922257463618,3.4873577736787618,9.241995065048652,15.174272899463755,0,0.0,

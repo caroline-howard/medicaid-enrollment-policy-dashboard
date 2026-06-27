@@ -1,8 +1,14 @@
+---
+title: Medicaid Enrollment Eligibility Operations Dashboard
+sdk: docker
+app_port: 7860
+---
+
 # Medicaid Enrollment & Eligibility Operations Analytics
 
 A Plotly Dash dashboard for monitoring public Medicaid/CHIP enrollment, eligibility operations, state variation, reporting quality, eligibility context, and fiscal profile data using official public sources.
 
-Live dashboard: https://d54fbb87-f0fd-4ddf-a3b5-56732692c752.plotly.app/
+Hugging Face Space: https://huggingface.co/spaces/Carolinehoward/medicaid-enrollment-policy-dashboard
 
 Findings brief: [Medicaid/CHIP Enrollment Divergence After Unwinding, 2019-2026](docs/reports/medicaid_chip_enrollment_divergence_findings_brief.pdf)
 
@@ -86,7 +92,7 @@ The app uses state-level aggregate records. It does not display county-level, be
 ```text
 medicaid-enrollment-policy-dashboard/
 ├── app.py
-├── Procfile
+├── Dockerfile
 ├── requirements.txt
 ├── assets/
 │   └── styles.css
@@ -134,20 +140,22 @@ http://127.0.0.1:8050
 
 ## Deployment Notes
 
-The dashboard is hosted on Plotly Cloud:
+The dashboard is configured for Hugging Face Spaces using the Docker SDK:
 
-https://d54fbb87-f0fd-4ddf-a3b5-56732692c752.plotly.app/
+https://huggingface.co/spaces/Carolinehoward/medicaid-enrollment-policy-dashboard
 
 Deployment configuration:
 
+- Space SDK: Docker
+- app port: `7860`
 - app entry file: `app.py`
 - server object: `server`
-- start command: `gunicorn app:server --workers 2 --threads 4 --timeout 120`
+- container start command: `gunicorn app:server --bind 0.0.0.0:7860 --workers 2 --threads 4 --timeout 120`
 
 Runtime paths included for the hosted app:
 
 - `app.py`
-- `Procfile`
+- `Dockerfile`
 - `requirements.txt`
 - `assets/`
 - `outputs/dashboard_tables/`

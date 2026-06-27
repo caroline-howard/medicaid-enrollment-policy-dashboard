@@ -1,9 +1,8 @@
 pandas
 numpy
 plotly
-dash
+dash==2.18.2
 gunicorn
 matplotlib
 requests
-jupyter
 python-dotenv

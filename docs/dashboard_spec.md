@@ -1,6 +1,6 @@
 # Dashboard Specification
 
-This specification defines the Version 1 Plotly Dash app for the Medicaid Enrollment & Eligibility Operations Dashboard. It uses the dashboard-ready tables created during EDA and does not add forecasting, causal analysis, or new data sources.
+This specification defines the Version 1 Plotly Dash app for the Medicaid/CHIP enrollment divergence after unwinding project. It uses the dashboard-ready tables created during EDA and does not add forecasting, causal analysis, or new data sources.
 
 ## 1. Dashboard Sections
 

@@ -1,16 +1,18 @@
 ---
-title: Medicaid Enrollment Eligibility Operations Dashboard
+title: Medicaid/CHIP Enrollment Divergence After Unwinding
 sdk: docker
 app_port: 7860
 ---
 
-# Medicaid Enrollment & Eligibility Operations Analytics
+# Medicaid/CHIP Enrollment Divergence After Unwinding
 
-A Plotly Dash dashboard for monitoring public Medicaid/CHIP enrollment, eligibility operations, state variation, reporting quality, eligibility context, and fiscal profile data using official public sources.
+Dashboard and findings brief analyzing Medicaid/CHIP enrollment divergence after unwinding using public CMS data.
 
 Hugging Face Space: https://huggingface.co/spaces/Carolinehoward/medicaid-enrollment-policy-dashboard
 
 Findings brief: [Medicaid/CHIP Enrollment Divergence After Unwinding, 2019-2026](docs/reports/medicaid_chip_enrollment_divergence_findings_brief.pdf)
+
+Repository name: `medicaid-chip-unwinding-analysis`
 
 ## Contents
 
@@ -27,7 +29,7 @@ Findings brief: [Medicaid/CHIP Enrollment Divergence After Unwinding, 2019-2026]
 
 ## Project Purpose
 
-Medicaid and CHIP enrollment changes can reflect eligibility rules, administrative processes, renewal activity, economic conditions, program design, and reporting practices. This project turns public aggregate Medicaid/CHIP data into a structured monitoring dashboard for reviewing national trends, state comparisons, and state-level profile context.
+Medicaid and CHIP enrollment changes after unwinding can reflect eligibility rules, administrative processes, renewal activity, economic conditions, program design, and reporting practices. This project turns public aggregate Medicaid/CHIP data into a structured dashboard and findings brief for reviewing national retrenchment, Medicaid/CHIP divergence, state comparisons, and state-level profile context.
 
 The dashboard supports descriptive program monitoring and policy-facing reporting. Additional methodological and data caveats are documented in [docs/limitations.md](docs/limitations.md).
 
@@ -90,7 +92,7 @@ The app uses state-level aggregate records. It does not display county-level, be
 ## Repository Structure
 
 ```text
-medicaid-enrollment-policy-dashboard/
+medicaid-chip-unwinding-analysis/
 ├── app.py
 ├── Dockerfile
 ├── requirements.txt

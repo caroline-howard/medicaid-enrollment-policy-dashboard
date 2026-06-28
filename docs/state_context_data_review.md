@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document reviews standardized official-source context data prepared for the Medicaid Enrollment & Eligibility Operations Dashboard. The goal is to support a future Section 3 design that is more data-driven and less dependent on custom state policy blurbs.
+This document reviews standardized official-source context data prepared for the Medicaid/CHIP enrollment divergence after unwinding project. The goal is to support a future Section 3 design that is more data-driven and less dependent on custom state policy blurbs.
 
 No dashboard code, callbacks, layout, CSS, or data pipeline files were changed for this review step.
 

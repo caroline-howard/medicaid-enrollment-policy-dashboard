@@ -1,8 +1,8 @@
 # Project Brief
 
-## Medicaid Enrollment & Eligibility Operations Analytics
+## Medicaid/CHIP Enrollment Divergence After Unwinding
 
-This brief summarizes a public-data healthcare policy analytics portfolio project focused on Medicaid/CHIP enrollment, eligibility operations, state comparison, and reporting quality. It is written as a concise project brief that could be adapted into a short writing sample for healthcare research, Medicaid policy, or program evaluation support roles.
+This brief summarizes a public-data healthcare policy analytics project focused on Medicaid/CHIP enrollment divergence after unwinding, eligibility operations, state comparison, and reporting quality. It is written as a concise project brief that could be adapted into a short writing sample for healthcare research, Medicaid policy, or program evaluation support roles.
 
 ## Purpose
 

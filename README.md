@@ -177,12 +177,8 @@ Validation checks used for this app version:
 
 ### National Snapshot
 
-![National Snapshot](docs/screenshots/national-snapshot.png)
+![National Snapshot full page](docs/screenshots/hf-chrome-national-snapshot-full-page.png)
 
 ### State Comparison Explorer
 
-![State Comparison Explorer national context](docs/screenshots/state-comparison-national-context.png)
-
-![State Comparison Explorer direct comparison](docs/screenshots/state-comparison-direct-comparison.png)
-
-![State Comparison Explorer within-state profiles](docs/screenshots/state-comparison-within-state-profiles.png)
+![State Comparison Explorer full page](docs/screenshots/hf-chrome-state-comparison-full-page.png)

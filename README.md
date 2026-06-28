@@ -1,22 +1,27 @@
 ---
+title: Medicaid/CHIP Enrollment Divergence After Unwinding, 2019–2026
 title: Medicaid/CHIP Enrollment Divergence After Unwinding
 sdk: docker
 app_port: 7860
 ---
 
+# Medicaid/CHIP Enrollment Divergence After Unwinding, 2019–2026
+
+This project analyzes Medicaid/CHIP enrollment divergence after the unwinding of pandemic-era continuous coverage protections, using public CMS enrollment data from 2019–2026. The project includes a deployed Python-based dashboard and a policy-facing findings brief examining national enrollment retrenchment, Medicaid–CHIP divergence, state-level variation, rolling volatility, and peak-to-current anomaly patterns.
 # Medicaid/CHIP Enrollment Divergence After Unwinding
 
 Dashboard and findings brief analyzing Medicaid/CHIP enrollment divergence after unwinding using public CMS data.
 
-Hugging Face Space: https://huggingface.co/spaces/Carolinehoward/medicaid-enrollment-policy-dashboard
+Deployed dashboard: https://huggingface.co/spaces/Carolinehoward/medicaid-enrollment-policy-dashboard
 
-Findings brief: [Medicaid/CHIP Enrollment Divergence After Unwinding, 2019-2026](docs/reports/medicaid_chip_enrollment_divergence_findings_brief.pdf)
+Findings brief / report: [Medicaid/CHIP Enrollment Divergence After Unwinding, 2019–2026](docs/reports/medicaid_chip_enrollment_divergence_findings_brief.pdf)
 
 Repository name: `medicaid-chip-unwinding-analysis`
 
 ## Contents
 
 - [Project Purpose](#project-purpose)
+- [Dashboard & Findings Brief](#dashboard--findings-brief)
 - [Official Data Sources](#official-data-sources)
 - [Main Questions](#main-questions)
 - [Dashboard Overview](#dashboard-overview)
@@ -29,9 +34,25 @@ Repository name: `medicaid-chip-unwinding-analysis`
 
 ## Project Purpose
 
+Medicaid and CHIP enrollment changes can reflect eligibility rules, administrative processes, renewal activity, economic conditions, program design, and reporting practices. This project turns public aggregate Medicaid/CHIP data into a deployed analytics dashboard and policy-facing findings brief for reviewing national trends, state divergence, and state-level profile context after unwinding.
 Medicaid and CHIP enrollment changes after unwinding can reflect eligibility rules, administrative processes, renewal activity, economic conditions, program design, and reporting practices. This project turns public aggregate Medicaid/CHIP data into a structured dashboard and findings brief for reviewing national retrenchment, Medicaid/CHIP divergence, state comparisons, and state-level profile context.
 
-The dashboard supports descriptive program monitoring and policy-facing reporting. Additional methodological and data caveats are documented in [docs/limitations.md](docs/limitations.md).
+The analysis supports descriptive program monitoring and policy-facing reporting. Additional methodological and data caveats are documented in [docs/limitations.md](docs/limitations.md).
+
+## Dashboard & Findings Brief
+
+This repository includes two primary deliverables:
+
+- Deployed dashboard for exploring national Medicaid/CHIP enrollment trends, state comparisons, enrollment history, eligibility context, and fiscal profile data.
+- Findings brief / report that summarizes national enrollment retrenchment, Medicaid–CHIP divergence, state-level variation, rolling volatility, and peak-to-current anomaly patterns.
+
+Key outputs include:
+
+- indexed Medicaid/CHIP enrollment trend charts
+- 3-month rolling volatility measures
+- regional state-divergence visuals
+- peak-to-current anomaly analysis
+- follow-up states identified in the findings brief, including Montana, Texas, Florida, and Michigan
 
 ## Official Data Sources
 
